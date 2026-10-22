@@ -8,12 +8,12 @@ Build a reproducible spatial review workflow, not a full digital-twin platform. 
 | --- | --- | --- | --- |
 | Documentation setup | Portable Voltix-style project-management workflow | Complete | None |
 | Planning baseline | Architecture, feature contracts, initial sequence and acceptance gates | Complete | Documentation setup |
-| M1 — Evidence and interaction | Reproducible corridor and usable endpoint correction prototype | Planned | Planning baseline |
+| M1 — Evidence and interaction | Reproducible corridor and usable endpoint correction prototype | Complete | Planning baseline |
 | M2 — Computed correction | Real fitting, diagnostics and reversible correction journey | Planned | M1 |
 | M3 — Durable review | Versioned save, recovery, conflict handling and provenance | Planned | M2 |
 | M4 — Verified portfolio demo | Reproducible delivery, performance/failure evidence and presentation | Planned | M3 |
 
-Setup and planning completion refer only to documents: [CAT-001](backlog.md#cat-001), [CAT-002](backlog.md#cat-002). There is no implemented application yet.
+Setup and planning completion refer to documents: [CAT-001](backlog.md#cat-001), [CAT-002](backlog.md#cat-002). M1 delivered a verified workspace, the frozen numerical profile, reproducible fixtures and a measured endpoint-editing prototype — M2 adds the production fitter and computed correction journey.
 
 ## M1 — Evidence and interaction
 
