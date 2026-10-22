@@ -9,11 +9,11 @@ Build a reproducible spatial review workflow, not a full digital-twin platform. 
 | Documentation setup | Portable Voltix-style project-management workflow | Complete | None |
 | Planning baseline | Architecture, feature contracts, initial sequence and acceptance gates | Complete | Documentation setup |
 | M1 — Evidence and interaction | Reproducible corridor and usable endpoint correction prototype | Complete | Planning baseline |
-| M2 — Computed correction | Real fitting, diagnostics and reversible correction journey | Planned | M1 |
+| M2 — Computed correction | Real fitting, diagnostics and reversible correction journey | Complete | M1 |
 | M3 — Durable review | Versioned save, recovery, conflict handling and provenance | Planned | M2 |
 | M4 — Verified portfolio demo | Reproducible delivery, performance/failure evidence and presentation | Planned | M3 |
 
-Setup and planning completion refer to documents: [CAT-001](backlog.md#cat-001), [CAT-002](backlog.md#cat-002). M1 delivered the workspace, numerical profile, fixtures and endpoint prototype. The [independent exit review](evidence/m1-exit-review.md) reopened CAT-006 for ambiguous/occluded interaction verification and resource observations; implementation fixes and resource observations are now present, but follow-up review requires corrected occlusion regression assertions and workload-specific performance sampling before M1 exit. M2 adds production fitting and hardens the computed correction journey.
+Setup and planning completion refer to documents: [CAT-001](backlog.md#cat-001), [CAT-002](backlog.md#cat-002). M1 delivered the workspace, numerical profile, fixtures and endpoint prototype. The [independent exit review](evidence/m1-exit-review.md) reopened CAT-006 for ambiguous/occluded interaction verification, resource observations, discriminating regression assertions and workload-isolated performance sampling; all findings are resolved in committed evidence. M2 delivered production fitting with computed diagnostics and hardened the computed correction journey against stale responses.
 
 ## M1 — Evidence and interaction
 
