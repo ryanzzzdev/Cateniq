@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: M1 application checks have run and were independently reproduced; see [M1 exit review](../evidence/m1-exit-review.md) for results and outstanding interaction/resource evidence. Later milestone acceptance remains planned.
+Status: all matrix scenarios have verified evidence; see the evidence index below. Independent reviews: [M1](../evidence/m1-exit-review.md), [M2](../evidence/m2-exit-review.md), [M3](../evidence/m3-exit-review.md). Latest verified revision `9b02519`.
 
 ## Evidence standard
 
@@ -27,6 +27,24 @@ Verification commands are defined and exercised during CAT-003 and subsequent im
 | P1 | Resource and interaction workload | Declared frame/load/selection/recalculation measurements meet pre-agreed budgets | CAT-006, CAT-012 |
 | X1 | Complete user journey | Real browser/API/store/fitter path survives reopen and produces correct export | CAT-010, CAT-013 |
 | X2 | Clean setup and demo | Documented setup, reset and cleanup reproduced in a clean disposable environment | CAT-003, CAT-013 |
+
+## Evidence index
+
+| ID | Passing evidence |
+| --- | --- |
+| D1 | `backend/tests/test_datasets.py` — hash/unit/schema rejections; reference truth stays separate from fitter inputs |
+| G1 | `backend/tests/test_geometry.py`, `backend/tests/test_fitting.py` — frozen-tolerance checks incl. unequal heights; M1 evidence doc |
+| G2 | `backend/tests/test_fitting.py`, adverse fixtures — explicit `unsupported`/`failed`/issue outcomes, never forced green; e2e lateral/quality-gate regressions |
+| U1 | `apps/web/e2e/workbench.spec.ts`, `apps/web/src/store.test.ts` — select, numeric/constrained edit, cancel, undo/redo, coordinate accuracy |
+| U2 | `apps/web/e2e/review.spec.ts` (delayed/aborted saves), `store.test.ts` — drafts retained, stale results never shown current, retry recovers |
+| R1 | `backend/tests/test_store.py` concurrent-save/op-ID tests; `e2e/review.spec.ts` two-session 409 |
+| R2 | `backend/tests/test_store.py` — real SIGKILL recovery (`TestRealProcessRecovery`), linked retry, API responsive under a slow run |
+| R3 | `backend/tests/test_store.py` acceptance-race tests; `e2e/review.spec.ts` dirty-state acceptance gating |
+| E1 | `backend/tests/test_store.py` export reconstruction/mismatch tests; `e2e/review.spec.ts` verifier round-trip |
+| F1 | `backend/tests/test_store.py` — corrupt DB, closed-connection write fault, solver failure staging, queue bound |
+| P1 | [m4-performance](../evidence/m4-performance.md) — all frozen budgets met at `9b02519`; resource behaviour flat |
+| X1 | `apps/web/e2e/review.spec.ts` + `e2e/demo.spec.ts` — full journey survives reopen and verifies export |
+| X2 | README setup verified in a clean disposable worktree (CAT-013 journal entry); [demo walkthrough](../demo.md) |
 
 ## Numerical and interaction gates
 

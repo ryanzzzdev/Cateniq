@@ -18,11 +18,11 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 - ✅ [CAT-010 — Integrate save, acceptance, conflicts and export](#cat-010)
 - ✅ [CAT-011 — Verify review races and failure recovery](#cat-011)
 - ✅ [CAT-012 — Measure performance and resource behaviour](#cat-012)
-- 📋 [CAT-013 — Package and review the portfolio demonstration](#cat-013)
+- ✅ [CAT-013 — Package and review the portfolio demonstration](#cat-013)
 
 ## Delivery notes
 
-M2 review fixes verified; M1 and M2 remain Complete. M3 findings from the independent exit review resolved and verified (see [M3 exit review](evidence/m3-exit-review.md)) — M3 Complete. M4 verification/packaging tasks remain Backlog. Next unused ID: CAT-014.
+M2 review fixes verified; M1 and M2 remain Complete. M3 findings from the independent exit review resolved and verified (see [M3 exit review](evidence/m3-exit-review.md)) — M3 Complete. M4 Complete: performance budgets met (`evidence/m4-performance.md`), demo recorded (`docs/demo/`, `project/demo.md`), clean-environment setup verified, evidence index maps the full acceptance matrix (`features/verification.md`). Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -425,7 +425,7 @@ Refine at M3 exit. Do not optimise solely for one scripted camera view.
 - Area: deployment
 - Milestone: M4
 - Priority: Normal
-- Status: Backlog 📋
+- Status: Done ✅
 - Depends on: CAT-012
 - References: [Specification](features/verification.md)
 
@@ -442,7 +442,7 @@ Deliver reproducible local operation, a concise demo and final evidence review.
 
 ### Completion evidence
 
-Not started; no implementation or verification evidence yet.
+Recorded walkthroughs: `docs/demo/01-correction-journey.webm` + `02-accept-and-conflict.webm` (Playwright video of `apps/web/e2e/demo.spec.ts` against the production build, real API and isolated `.e2e-demo.db`); narrative in `docs/project/demo.md`. README verified in a clean disposable worktree: `uv sync --locked` → 83 pytest, `npm ci` → typecheck + 30 vitest + build, `npx playwright test` → 19 browser checks; reset boundary (`CATENIQ_DB_PATH`, `rm backend/reviews.db*`) exercised. Evidence index in `features/verification.md` maps every acceptance-matrix scenario to passing evidence. Hosted CI workflow exists but no hosted run observed — reported separately per contract.
 
 ### Notes
 

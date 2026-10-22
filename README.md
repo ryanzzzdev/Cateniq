@@ -2,9 +2,18 @@
 
 A spatial QA workbench for reviewing, correcting and validating automatically extracted electricity-network models.
 
-The first demonstration will follow one incorrectly fitted conductor endpoint from computed diagnostic to spatial inspection, reversible correction, revalidation and a saved provenance record. Synthetic observations and injected errors will be labelled. The product does not certify physical safety or calculate network operating limits.
+The demonstration follows one incorrectly fitted conductor endpoint from computed diagnostic to spatial inspection, reversible correction, revalidation, durable save/reopen and an exportable provenance record — plus a clean acceptance path and a two-session save conflict. Synthetic observations and injected errors are labelled; unresolved cases stay flagged rather than forced green. The product does not certify physical safety or calculate network operating limits.
 
-Cateniq complements NEMLab's market analysis and Voltix's simulated edge control with spatial computation and expert-facing interactive software. See the [project concept](docs/project-concept.md) for motivation, the Neara role connection and portfolio positioning.
+Cateniq complements NEMLab's market analysis and Voltix's simulated edge control with spatial computation and expert-facing interactive software. See the [project concept](docs/project-concept.md) for motivation, the Neara role connection and portfolio positioning, and [the demo walkthrough](docs/project/demo.md) for the recorded sequences.
+
+## Demo
+
+Recorded walkthroughs live in [docs/demo/](docs/demo/) with the narrative in [docs/project/demo.md](docs/project/demo.md). Reproduce them (production build, real API, isolated database, headless Chromium):
+
+```bash
+cd apps/web
+npx playwright test -c playwright.demo.config.ts   # videos → test-results/demo-*/video.webm
+```
 
 ## Development
 
@@ -27,12 +36,27 @@ npm run typecheck && npm run test && npm run build
 cd backend && uv run uvicorn cateniq.app:app --reload --port 8000
 cd apps/web && npm run dev
 
-# Browser smoke: builds the app, serves it, starts the real API, loads the shell in chromium
+# Browser tests: builds the app, serves it, starts the real API against an isolated DB
 cd apps/web && npx playwright install chromium   # once per machine
-npm run test:e2e
+npm run test:e2e                                # verification suite (isolated .e2e-reviews.db)
+npx playwright test -c playwright.perf.config.ts # named-workload performance check
 ```
 
-Verified on Linux (kernel 7.0), Python 3.14.4, uv 0.11.29, Node 22.23.1, npm 10.9.8, Chromium headless shell 156 via Playwright 1.64.1. A GitHub Actions workflow (`.github/workflows/ci.yml`) runs the same checks; a hosted green run has not been observed yet.
+## State, configuration and reset
+
+- The backend persists review data in SQLite at `backend/reviews.db` (WAL sidecars `reviews.db-shm/-wal`). Override with `CATENIQ_DB_PATH`; fixture location with `CATENIQ_FIXTURES_DIR`.
+- **Reset**: stop the backend, then `rm backend/reviews.db*` — a fresh schema is created on next start. Saved revisions, runs and acceptance are deleted; this is the only supported reset.
+- Test/demo databases (`.e2e-reviews.db`, `.e2e-demo.db`) are recreated automatically and gitignored; `reviews.db` must never be committed.
+- Corrupt or wrong-version databases fail explicitly at startup — there is no silent reset or migration.
+
+## Limitations
+
+- Synthetic labelled fixtures only — no real LiDAR ingestion, no electrical clearance or safety analysis.
+- One executor slot with a 30 s cooperative deadline; solver concurrency and run history are bounded/append-only by contract (see [review-lifecycle](docs/project/features/review-lifecycle.md)).
+- Conflicted saves are rejected, not merged. Undo/redo covers local edits only; reverting a saved revision is a new save.
+- Acceptance is workflow bookkeeping for a validated revision, not a certification.
+
+Verified on Linux (kernel 7.0), Python 3.14.4, uv 0.11.29, Node 22.23.1, npm 10.9.8, Chromium headless shell 156 via Playwright 1.64.1. A GitHub Actions workflow (`.github/workflows/ci.yml`) runs the same checks; a hosted green run has not been observed yet — CI status is reported separately from local verification.
 
 ## Project records
 

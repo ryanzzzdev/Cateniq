@@ -23,3 +23,5 @@ reviews.db*
 reviews.db
 .e2e-reviews.db
 .e2e-reviews.db*
+.e2e-demo.db
+.e2e-demo.db*
