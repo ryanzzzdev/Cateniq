@@ -11,7 +11,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 - ✅ [CAT-003 — Bootstrap the minimal development workspace](#cat-003)
 - ✅ [CAT-004 — Freeze the supported geometry and dataset profile](#cat-004)
 - ✅ [CAT-005 — Build reproducible corridor fixtures](#cat-005)
-- 🟢 [CAT-006 — Prototype endpoint inspection and editing](#cat-006)
+- ✅ [CAT-006 — Prototype endpoint inspection and editing](#cat-006)
 - 📋 [CAT-007 — Implement fitting and computed diagnostics](#cat-007)
 - 📋 [CAT-008 — Complete the computed correction journey](#cat-008)
 - 📋 [CAT-009 — Implement durable revisions and recoverable runs](#cat-009)
@@ -22,7 +22,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 ## Delivery notes
 
-Workspace skeleton (CAT-003), frozen numerical profile (CAT-004) and reproducible corridor fixtures (CAT-005) are committed. Next: CAT-006 endpoint prototype closes M1. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
+Workspace (CAT-003), frozen profile (CAT-004), fixtures (CAT-005) and the measured endpoint prototype (CAT-006) are committed — M1 evidence complete. Next: M1 exit review, then CAT-007 fitting/diagnostics opens M2. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -187,9 +187,9 @@ Three seeded datasets (demo, held-out, adverse). Fitter-facing loading never rea
 - Area: workbench
 - Milestone: M1
 - Priority: Normal
-- Status: Ready 🟢
+- Status: Done ✅
 - Depends on: CAT-005
-- References: [Specification](features/workbench.md)
+- References: [Specification](features/workbench.md), [Evidence](../evidence/endpoint-interaction.md)
 
 ### Outcome
 
@@ -204,11 +204,11 @@ Prove one endpoint interaction is usable before building a broad editor.
 
 ### Completion evidence
 
-Not started; no implementation or verification evidence yet.
+2026-10-22: 17 vitest unit checks, 5 Playwright journey checks (correction journey incl. computed diagnostic → numeric/drag edit → commit → constrained refit → undo/redo, cancel, no-hit safety) and a 100,200-point perf run all pass; measured numbers and frozen budgets in [evidence/endpoint-interaction.md](evidence/endpoint-interaction.md). BLK-002 resolved. Committed alongside the implementation.
 
 ### Notes
 
-Prototype scope; no brush, pole editing, persistence or general CAD toolset.
+Prototype scope; no brush, pole editing, persistence or general CAD toolset. Local edits are client-side drafts — durable revisions are CAT-009. Next action: M1 exit review, then CAT-007.
 
 <a id="cat-007"></a>
 

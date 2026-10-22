@@ -23,11 +23,11 @@ These are scoped implementation gates, not evidence that the project is currentl
 ## BLK-002 — Endpoint interaction and performance budgets
 
 - Identified: 2026-10-22
-- Status: Open
+- Status: Resolved
 - Affected tasks/milestones: [CAT-006](backlog.md#cat-006), CAT-008, CAT-012; M1 interaction and M4 performance acceptance.
 - Question: Which constrained editing/snapping interaction is usable with occluded points, and what measured budgets fit the chosen reference machine and workload?
 - Impact: A nominal frame-rate claim cannot establish selection/edit usability or memory behaviour.
 - Blocking scope: Gates interaction/performance acceptance, not the initial prototype. No user answer is currently required.
 - Evidence: Roughly 100,000 points is an initial representative workload; no Cateniq browser measurements exist.
-- Next action / owner: Implementing agent prototypes one endpoint tool in CAT-006, records normal/ambiguous interaction evidence, freezes environment/workload and numerical performance targets before later acceptance.
-- Resolution: Pending.
+- Next action / owner: Closed by CAT-006.
+- Resolution: Plane-constrained endpoint drag with 0.6 m snap to declared attachment candidates, plus numeric editing; selection scoped to the selected span's visible handles so ambiguous/occluded picks move nothing. Budgets frozen on the named reference machine at the 100,200-point workload: load ≤5 s, select ≤1 s, edit ≤1 s, commit ≤1 s, frame p95 ≤50 ms. Evidence: `docs/project/evidence/endpoint-interaction.md` (Playwright-measured).

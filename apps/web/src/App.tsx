@@ -1,24 +1,210 @@
-import { useEffect, useState } from "react";
-import { fetchHealth } from "./api";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
+  fetchDataset,
+  fetchDatasets,
+  fetchDiagnostics,
+  postFit,
+  type Dataset,
+  type Vec3,
+} from "./api";
+import { PropertiesPanel, QueuePanel } from "./panels";
+import { CorridorScene } from "./scene";
+import { WorkbenchStore, type Endpoint } from "./store";
 
-export function App() {
-  const [health, setHealth] = useState<string>("checking");
+const store = new WorkbenchStore();
+// Perf instrumentation for the e2e measurements (not user-visible).
+declare global {
+  interface Window {
+    __cateniq_perf?: { scene?: CorridorScene; readyAt?: number };
+  }
+}
+window.__cateniq_perf = {};
+
+export default function App() {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<CorridorScene | null>(null);
+  const [datasetList, setDatasetList] = useState<
+    { dataset_id: string; role: string; point_count: number }[]
+  >([]);
+  const state = useSyncExternalStore(
+    useCallback((cb) => store.subscribe(cb), []),
+    () => store.get(),
+  );
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetchHealth(controller.signal)
-      .then((h) => setHealth(h.status))
-      .catch(() => setHealth("unavailable"));
-    return () => controller.abort();
+    const el = viewportRef.current;
+    if (!el) return;
+    const scene = new CorridorScene(el);
+    sceneRef.current = scene;
+    window.__cateniq_perf!.scene = scene;
+
+    scene.onPick = (r) => {
+      if (r.kind === "span" && r.spanId) store.select(r.spanId);
+      if (r.kind === "none") store.select(null);
+      if (r.kind === "handle" && r.spanId && r.which) {
+        store.beginDraft(r.spanId, r.which);
+      }
+    };
+    scene.onDragPoint = (p, snapped) => store.moveDraft(p, snapped);
+    scene.onDragEnd = () => store.commitDraft();
+    return () => scene.dispose();
   }, []);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const list = await fetchDatasets();
+        setDatasetList(list);
+        if (list.length) await openDataset(list[0].dataset_id);
+      } catch (e) {
+        store.setError(String(e));
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Push store state into the scene whenever it changes.
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene || !state.dataset) return;
+    if (scene.datasetId !== state.dataset.dataset_id) {
+      scene.datasetId = state.dataset.dataset_id;
+      scene.setData(state.dataset, (sid, w) => store.attachFor(sid, w));
+    }
+    scene.setSelected(state.selectedSpanId);
+    scene.syncHandles((sid, w) => store.attachFor(sid, w));
+    scene.setDraft(state.draft);
+    for (const [sid, f] of Object.entries(state.lastFit)) {
+      scene.showFitCurve(sid, f.curve ?? null);
+    }
+  }, [state]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (e.key === "Escape") {
+        store.cancelDraft();
+        return;
+      }
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) store.redo();
+        else store.undo();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        store.redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  async function openDataset(id: string) {
+    const s = store.get();
+    if ((s.past.length || s.draft) && s.datasetId && s.datasetId !== id) {
+      if (!window.confirm("Unsaved local edits will be discarded. Continue?"))
+        return;
+    }
+    store.setLoading(id);
+    try {
+      const [ds, diag] = await Promise.all([
+        fetchDataset(id),
+        fetchDiagnostics(id),
+      ]);
+      store.setReady(ds, diag);
+      window.__cateniq_perf!.readyAt = performance.now();
+    } catch (e) {
+      store.setError(String(e));
+    }
+  }
+
+  function candidatesFor(ds: Dataset, spanId: string, which: Endpoint) {
+    const span = ds.spans.find((x) => x.span_id === spanId);
+    const pole = ds.poles.find(
+      (p) => p.pole_id === (which === "a" ? span?.pole_a : span?.pole_b),
+    );
+    return pole?.attachment_candidates ?? [];
+  }
+
+  async function validate(spanId: string) {
+    const id = store.get().datasetId;
+    if (!id) return;
+    try {
+      const res = await postFit(id, {
+        span_id: spanId,
+        attach_a: store.attachFor(spanId, "a"),
+        attach_b: store.attachFor(spanId, "b"),
+      });
+      store.recordFit(spanId, {
+        status: res.status,
+        rms: res.rms,
+        reason: res.reason,
+        curve: res.fit?.curve ?? null,
+      });
+    } catch (e) {
+      store.setError(String(e));
+    }
+  }
+
   return (
-    <main className="shell">
-      <h1>Cateniq</h1>
-      <p>Spatial QA workbench — development shell.</p>
-      <p>
-        api: <output data-testid="api-status">{health}</output>
-      </p>
-    </main>
+    <div className="app">
+      <header>
+        <h1>Cateniq</h1>
+        <select
+          aria-label="dataset"
+          value={state.datasetId ?? ""}
+          onChange={(e) => void openDataset(e.target.value)}
+        >
+          {datasetList.map((d) => (
+            <option key={d.dataset_id} value={d.dataset_id}>
+              {d.dataset_id} ({d.point_count.toLocaleString()} pts)
+            </option>
+          ))}
+        </select>
+        <span className="status" data-testid="load-status">
+          {state.loadState === "ready" && state.dataset
+            ? `${state.datasetId} — ${state.dataset.role}`
+            : state.loadState}
+        </span>
+        {state.error && (
+          <span className="error" role="alert">
+            {state.error}
+          </span>
+        )}
+      </header>
+      <QueuePanel
+        diagnostics={state.diagnostics}
+        selected={state.selectedSpanId}
+        onSelect={(sid) => store.select(sid)}
+      />
+      <main
+        className="viewport"
+        ref={viewportRef}
+        data-testid="viewport"
+        aria-label="3D evidence viewport"
+      />
+      <PropertiesPanel
+        state={state}
+        attachFor={(sid, w) => store.attachFor(sid, w)}
+        candidatesFor={(sid, w) =>
+          state.dataset ? candidatesFor(state.dataset, sid, w) : []
+        }
+        onBeginDraft={(sid, w) => store.beginDraft(sid, w)}
+        onMoveDraft={(p: Vec3, snapped) => store.moveDraft(p, snapped)}
+        onCommit={() => store.commitDraft()}
+        onCancel={() => store.cancelDraft()}
+        onUndo={() => store.undo()}
+        onRedo={() => store.redo()}
+        onValidate={(sid) => void validate(sid)}
+      />
+    </div>
   );
 }

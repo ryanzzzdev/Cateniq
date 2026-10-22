@@ -1,12 +1,240 @@
 :root {
   color-scheme: dark;
-  font-family: system-ui, sans-serif;
-  background: #14161a;
-  color: #e6e8eb;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
 }
 
-.shell {
-  max-width: 48rem;
-  margin: 4rem auto;
-  padding: 0 1rem;
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0f1316;
+  color: #d7dde3;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 280px 1fr 300px;
+  grid-template-rows: 48px 1fr;
+  grid-template-areas:
+    "header header header"
+    "queue viewport props";
+  height: 100vh;
+}
+
+header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  background: #171d23;
+  border-bottom: 1px solid #26323b;
+}
+
+header h1 {
+  font-size: 16px;
+  margin: 0;
+}
+
+header select,
+header .status {
+  background: #222c34;
+  color: #d7dde3;
+  border: 1px solid #33424d;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.error {
+  color: #ff8a80;
+}
+
+.queue {
+  grid-area: queue;
+  overflow-y: auto;
+  border-right: 1px solid #26323b;
+  padding: 10px;
+}
+
+.queue h2,
+.props h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8fa3b0;
+  margin: 4px 0 10px;
+}
+
+.queue ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.queue-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #1a2229;
+  border: 1px solid #26323b;
+  border-radius: 6px;
+  color: #d7dde3;
+  padding: 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.queue-row.selected {
+  border-color: #4dd0e1;
+  outline: 2px solid #4dd0e133;
+}
+
+.queue-row:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #4dd0e1;
+  outline-offset: 1px;
+}
+
+.queue-id {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.queue-status {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #37474f;
+}
+
+.queue-status.status-ok {
+  background: #2e5d34;
+}
+
+.queue-status.status-insufficient_evidence {
+  background: #6d4c12;
+}
+
+.queue-issue {
+  display: block;
+  font-size: 12px;
+  color: #b0bec5;
+  margin-top: 4px;
+}
+
+.queue-issue[data-kind="endpoint_mismatch"] {
+  color: #ffab91;
+}
+
+.queue-issue.ok {
+  color: #81c784;
+}
+
+.viewport {
+  grid-area: viewport;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.viewport canvas {
+  display: block;
+}
+
+.props {
+  grid-area: props;
+  overflow-y: auto;
+  border-left: 1px solid #26323b;
+  padding: 10px;
+}
+
+.props dl {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 4px 8px;
+  margin: 0 0 10px;
+}
+
+.props dt {
+  color: #8fa3b0;
+}
+
+.props dd {
+  margin: 0;
+}
+
+.endpoint {
+  border: 1px solid #26323b;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  padding: 8px;
+}
+
+.endpoint.active {
+  border-color: #4dd0e1;
+}
+
+.endpoint label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.endpoint input {
+  width: 76px;
+  background: #12181d;
+  color: #d7dde3;
+  border: 1px solid #33424d;
+  border-radius: 4px;
+  padding: 3px 5px;
+}
+
+.row {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+button {
+  background: #222c34;
+  color: #d7dde3;
+  border: 1px solid #33424d;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: #4dd0e1;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.draft {
+  border: 1px dashed #4dd0e1;
+  border-radius: 6px;
+  padding: 8px;
+  margin: 8px 0;
+}
+
+.fit {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.fit.stale {
+  color: #ffcc80;
+}
+
+.muted {
+  color: #78909c;
 }

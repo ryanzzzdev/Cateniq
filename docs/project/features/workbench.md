@@ -2,13 +2,13 @@
 
 Date: 2026-10-22
 
-Status: Initial design; interaction feasibility and performance budgets are an M1 gate.
+Status: Endpoint interaction prototyped and budgets frozen (CAT-006, [evidence](../evidence/endpoint-interaction.md)); persistence and rerun plumbing remain M2+.
 
 ## Main journey
 
 The screen presents a diagnostic queue, a 3D evidence viewport and selected-span properties/validation results. Selecting an issue focuses the relevant geometry without hiding which dataset and revision are open. Users can toggle observations and model geometry and inspect a textual measurement alongside the visual cue; colour alone must not convey status.
 
-The first editor changes one conductor endpoint. Use a visible handle constrained to an explicit plane or support target, with numerical coordinate editing as a precise alternative. Display the candidate target and displacement before committing the edit. Picking and snapping must be derived from visible/source geometry, never hidden synthetic ground truth. CAT-006 will choose and document the exact interaction after trying ambiguous and occluded views.
+The first editor changes one conductor endpoint. Frozen design (CAT-006): per-endpoint handles appear only on the selected span; the drag is constrained to the declared vertical plane through the span's attachments and snaps to the support pole's named attachment candidates within 0.6 m. Numeric x/y/z editing is the precise alternative (field focus begins a draft). A ghost handle, displacement line, candidate snap ring and live displacement readout preview the edit before commit. Picking and snapping are derived from visible source geometry only — invisible handles are unpickable, no-hit clicks move nothing.
 
 A drag produces one logical undoable command rather than a command per pointer event. Cancel restores the previous local state. Undo/redo covers local endpoint edits; a new edit clears redo. Camera movement is not a model correction. Immutable source points are not modified.
 
@@ -24,7 +24,7 @@ After a conflict, preserve the local draft and offer inspection/reload or delibe
 
 Provide visible tool state, keyboard undo/redo, keyboard-accessible issue selection and numerical editing, focus indication, readable error messages and recoverable loading states. The target is a desktop engineering workbench; phone editing and full accessibility certification are not initial claims.
 
-Measure loading, frame times, selection, editing and memory at stated point counts and hardware/browser settings. Start with a small corridor and a roughly 100,000-point representative workload, then determine budgets in CAT-006 before broader optimisation. The count is a test workload, not proof of large-scale capability. Test switching datasets and repeated edits for stale objects/resource growth.
+Measure loading, frame times, selection, editing and memory at stated point counts and hardware/browser settings. Frozen reference environment (CAT-006): Linux kernel 7.0, Intel Core Ultra 5 225H, 30 GB RAM, headless Chromium via Playwright 1.64.1, Vite preview + uvicorn. Workload: `corridor-perf`, 100,200 rendered points, generated on demand. Budgets (measured → frozen): load→ready ≤5 s, select ≤1 s, edit feedback ≤1 s, commit ≤1 s, frame p95 ≤50 ms. The count is a test workload, not proof of large-scale capability. Test switching datasets and repeated edits for stale objects/resource growth.
 
 ## Acceptance
 
