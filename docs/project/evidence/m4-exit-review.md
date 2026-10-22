@@ -49,3 +49,23 @@ All findings verified as real defects and fixed:
 - **Performance evidence completeness** — `e2e/perf.spec.ts` now measures `POST /fit` recalculation latency (445 ms) and five commit/undo/redo cycles with heap/renderer-object checks (flat 22 MB); `m4-performance.md` now cites the `features/workbench.md` budgets (≤5 s load, ≤1 s select/edit/commit, frames p50 ≤50 / p95 ≤100 ms) instead of outdated values, drops the nonexistent "rotate frames" claim, and states the heap-measurement limit honestly. Evidence-index filenames corrected to `test_geometry_profile.py` / `test_fitting_production.py`.
 
 Re-verification at this revision: 83 pytest + ruff/format/strict mypy; `tsc -b` + 32 vitest + build; 20 browser checks on the default config; 2 demo recordings on the dedicated config. CAT-010–013 Done, M3/M4 Complete again.
+
+## Independent re-review at `4611e39`
+
+The resolution above is partially confirmed. One P1 remains: **undo followed by a different-endpoint edit during save still loses the undo**. CAT-010/011 reopen; M3/M4 remain In progress. CAT-012/013 fixes are verified within the measurement limitations below.
+
+Reproduction using `readyStore()` from `store.test.ts`: commit S2 b from z=10.5 to 12; capture `submitted = s.get().past`; undo; commit S2 a from z=12 to 13; acknowledge the submitted snapshot with `recordSaved(1, {S2: {attach_a: [50,0,12], attach_b: [95,0,12]}}, null, submitted)`. Before acknowledgement b is 10.5; afterward it is incorrectly 12, while a correctly stays 13. A temporary Vitest regression asserting b remains 10.5 failed with expected 10.5 / received 12; it was removed after the review. This is store-level reproduction, not a new browser probe.
+
+Cause: `store.ts:397` collects endpoints only from current past/future. Committing a after undo clears future, so b disappears from both histories; the acknowledged baseline silently reinstates b. Include submitted/acknowledged endpoints when capturing the pre-response effective geometry and add this different-endpoint branch regression (plus delayed-response browser coverage). Existing undo-to-empty and undo/redo tests do not cover it. The preceding resolution's claim that branch-after-undo is covered is therefore incorrect.
+
+Independent checks: backend ruff check/format, mypy and **83 tests pass**; frontend typecheck and **32 unit tests pass**; exact default `npm run test:e2e` **20 pass**; dedicated demo **2 pass**; dedicated performance **1 pass**. Production builds run through the browser configurations (large-bundle warning remains). Demo isolation is confirmed.
+
+Performance rerun: 100,200 points; load 1592 ms, select 349 ms, edit 555 ms, commit 391 ms, recalculation 367 ms; 102 frames p50 33.3 / p95 33.4 ms. Rounded heap 21 MB at all sampled stages including five edit/undo/redo cycles; final scene geometries 91, renderer geometries 40→29→47 and 50 after edits. Frozen timing budgets pass. This remains one fit-latency sample, not a recalculation distribution; rounded heap and endpoint resource samples do not prove absence of long-term leaks. Report attribution to `9b02519` does not identify the revised harness; this rerun is at `4611e39`. No fresh dependency install, hosted CI or visual video audit performed.
+
+## Resolution of the re-review finding (post `4611e39`)
+
+The different-endpoint branch-after-undo reproduction is confirmed and fixed. `recordSaved` builds its pre-ack effective snapshot from `past`, `future` **and the acknowledged command set** — an endpoint the user undid and then left by editing a different endpoint is absent from both histories but still present in `acked`, so its reverted value is re-expressed as an explicit unsaved edit rather than silently overwritten by the baseline. The review's own store reproduction (`commit b → undo → commit a → ack`) now passes with `b` at the reverted value and `a` at the new edit.
+
+Regressions: `store.test.ts` ("undo then a different-endpoint edit during save preserves the undo" — asserts both values and history length) and a `review.spec.ts` delayed-response browser test asserting both endpoints and the unsaved indicator after release.
+
+Re-verification: 83 pytest + ruff/format/strict mypy; `tsc -b` + 33 vitest + build; 21 browser checks on the default config; 2 demo recordings on the dedicated config. CAT-010/011 Done again; M3/M4 Complete.

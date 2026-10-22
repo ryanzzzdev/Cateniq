@@ -176,6 +176,43 @@ test("an undo during a pending save survives as an unsaved edit", async ({
   await expect(page.getByTestId("coord-b-2")).toHaveValue("10.80");
 });
 
+test("undo then a different-endpoint edit during a save preserves both", async ({
+  page,
+}) => {
+  let release!: () => void;
+  const held = new Promise<void>((r) => {
+    release = r;
+  });
+  await page.route("**/review/operations", async (route) => {
+    const response = await route.fetch();
+    await held;
+    await route.fulfill({ response });
+  });
+  await loadCorridorB(page);
+  await selectB1(page);
+  const bBaseline = await page.getByTestId("coord-b-2").inputValue();
+  await editB1AndCommit(page, "10.9");
+  await page.getByTestId("save-button").click();
+  await expect(page.getByRole("button", { name: "Saving…" })).toBeVisible();
+
+  // Undo the submitted edit, then edit a different endpoint — the new
+  // commit clears redo history, so the undone endpoint leaves both
+  // histories before the ack lands.
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByTestId("coord-a-2").click();
+  await page.getByTestId("coord-a-2").fill("12");
+  await page.getByRole("button", { name: "Commit" }).click();
+  release();
+
+  // The ack must preserve the undo (b reverted) and the new edit (a).
+  await expect(page.getByTestId("unsaved-note")).toContainText(
+    "2 local edit",
+    { timeout: 15000 },
+  );
+  await expect(page.getByTestId("coord-b-2")).toHaveValue(bBaseline);
+  await expect(page.getByTestId("coord-a-2")).toHaveValue("12.00");
+});
+
 test("a failed save re-enables retry and replays the operation", async ({
   page,
 }) => {

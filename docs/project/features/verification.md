@@ -59,3 +59,5 @@ A short walkthrough should show the labelled synthetic dataset, computed issue, 
 Final documentation explains local requirements, storage/reset behaviour, known unsupported geometry, measurement limits and the portfolio/Neara relationship. Hosted CI should run suitable automated checks when configured; its result remains unverified until an actual run is observed.
 
 Tasks: [CAT-011](../backlog.md#cat-011), [CAT-012](../backlog.md#cat-012), [CAT-013](../backlog.md#cat-013).
+
+Independent re-review at `4611e39`: baseline suites pass; its remaining undo-plus-different-endpoint save race is resolved (`recordSaved` snapshots the acknowledged endpoint set; store + browser regressions). Final acceptance verified per the evidence index; see [M4 re-review](../evidence/m4-exit-review.md#independent-re-review-at-4611e39).

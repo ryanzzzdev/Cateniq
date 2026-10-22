@@ -391,10 +391,12 @@ export class WorkbenchStore {
     acked: EditCommand[],
   ) {
     const pre = this.state;
-    // The user's current effective value at every history-touched
-    // endpoint, captured before the new baseline lands.
+    // The user's current effective value at every endpoint that could
+    // differ from the incoming baseline: local history plus the
+    // acknowledged set. (An undone-then-branched endpoint lives in
+    // neither history — the acked set still catches it.)
     const touched = new Map<string, Vec3>();
-    for (const c of [...pre.past, ...pre.future]) {
+    for (const c of [...pre.past, ...pre.future, ...acked]) {
       const k = `${c.spanId}|${c.which}`;
       if (!touched.has(k)) touched.set(k, attachForIn(pre, c.spanId, c.which));
     }

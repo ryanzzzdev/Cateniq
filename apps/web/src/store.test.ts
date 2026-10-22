@@ -247,6 +247,29 @@ describe("workbench store", () => {
     expect(s.attachFor("S2", "b")).toEqual([95, 0, 12]);
   });
 
+  it("undo then a different-endpoint edit during save preserves the undo", () => {
+    const s = readyStore();
+    s.beginDraft("S2", "b");
+    s.moveDraft([95, 0, 12]);
+    s.commitDraft();
+    const submitted = s.get().past;
+    s.undo(); // b reverts to prediction 10.5
+    // Committing a different endpoint clears `future` — the undone b
+    // leaves both histories but must still survive the ack.
+    s.beginDraft("S2", "a");
+    s.moveDraft([50, 0, 13]);
+    s.commitDraft();
+    s.recordSaved(
+      1,
+      { S2: { attach_a: [50, 0, 12], attach_b: [95, 0, 12] } },
+      null,
+      submitted,
+    );
+    expect(s.attachFor("S2", "a")).toEqual([50, 0, 13]); // kept edit
+    expect(s.attachFor("S2", "b")).toEqual([95, 0, 10.5]); // undo survives
+    expect(s.get().past).toHaveLength(2);
+  });
+
   it("undo then redo during a save acks cleanly — no ghost edit", () => {
     const s = readyStore();
     s.beginDraft("S2", "b");

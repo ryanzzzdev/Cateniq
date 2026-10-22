@@ -22,7 +22,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 ## Delivery notes
 
-M1/M2 remain Complete. M4 review findings resolved and verified (see [M4 exit review](evidence/m4-exit-review.md)): undo during a pending save is preserved via history rebase, the demo spec is isolated from the verification suite, and performance evidence now cites the contract budgets with recalculation/repeated-edit measurements. M3/M4 Complete. Next unused ID: CAT-014.
+M1/M2 remain Complete. Independent re-review at `4611e39` confirmed demo isolation and baseline checks; its remaining undo/branch-during-save finding is resolved (`recordSaved` snapshots the acknowledged endpoint set) with store + browser regressions. CAT-010–013 Done; M3/M4 Complete. See [M4 exit review](evidence/m4-exit-review.md). Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -356,6 +356,8 @@ Independent review at `829b736`: reopened because undo during pending save still
 
 No automatic merge and no claims that corrections are unquestioned ground truth.
 
+Independent re-review at `4611e39`: reopened for the remaining different-endpoint branch-after-undo save race — resolved: `recordSaved`'s pre-ack snapshot now covers the acknowledged endpoint set too (an undone-then-branched endpoint lives in neither history but still differs from the baseline), so the undo survives. Store reproduction + delayed-response browser regression added.
+
 <a id="cat-011"></a>
 
 ## CAT-011 — Verify review races and failure recovery
@@ -390,6 +392,8 @@ Independent review at `829b736`: reopened because undo/save regression verificat
 ### Notes
 
 Refine fault harness when implementation exists; process crash does not prove power-cut durability.
+
+Independent re-review at `4611e39`: reopened for the remaining different-endpoint branch-after-undo save race — resolved: `recordSaved`'s pre-ack snapshot now covers the acknowledged endpoint set too (an undone-then-branched endpoint lives in neither history but still differs from the baseline), so the undo survives. Store reproduction + delayed-response browser regression added.
 
 <a id="cat-012"></a>
 
