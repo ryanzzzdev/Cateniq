@@ -1,8 +1,13 @@
 """Review store tests (CAT-009): conditional writes, operation-ID
 idempotency and schema guards against real SQLite — not mocked state."""
 
+import os
 import sqlite3
+import subprocess
+import sys
+import textwrap
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -471,3 +476,156 @@ class TestRunApi:
             json={"revision": 0, "run_id": out["attempt_id"]},
         )
         assert stale.status_code == 409
+
+
+class TestCoherentSnapshots:
+    """Exports under a concurrent saver are always self-consistent — a
+    save can interleave between exports but never *inside* one."""
+
+    def test_export_is_coherent_under_concurrent_saves(self, tmp_path: Path) -> None:
+        fixtures = Path(__file__).resolve().parents[2] / "fixtures"
+        from cateniq.service import CorridorService
+
+        svc = CorridorService(fixtures, tmp_path / "reviews.db", run_executor=False)
+        stop = threading.Event()
+
+        def saver() -> None:
+            for i in range(40):
+                rev = svc.review_state("corridor-a")["revision"]
+                try:
+                    svc.save_operation("corridor-a", f"save-{i:06d}", rev, EDITS)
+                except Exception:
+                    return
+                if stop.is_set():
+                    return
+
+        t = threading.Thread(target=saver)
+        t.start()
+        for _ in range(40):
+            export = svc.export_review("corridor-a")
+            # The export must verify against its own declared revision —
+            # a split read would produce a chain that does not reach it.
+            assert svc.verify_export(export)["ok"] is True
+        stop.set()
+        t.join(timeout=5)
+        svc.shutdown()
+
+
+class TestRealProcessRecovery:
+    """CAT-011: an actual OS-level kill — not a simulated restart. A child
+    process marks a run running, is SIGKILLed mid-work, and a fresh
+    process must recover the durable state."""
+
+    def test_process_kill_marks_run_interrupted_and_retry_recovers(
+        self, tmp_path: Path
+    ) -> None:
+        fixtures = Path(__file__).resolve().parents[2] / "fixtures"
+        src = Path(__file__).resolve().parents[1] / "src"
+        db = tmp_path / "reviews.db"
+        child = tmp_path / "child_run.py"
+        child.write_text(
+            textwrap.dedent(
+                f"""
+                import os, sys, time
+                sys.path.insert(0, {str(src)!r})
+                from pathlib import Path
+                from cateniq.service import CorridorService
+
+                svc = CorridorService(
+                    Path({str(fixtures)!r}), Path({str(db)!r}),
+                    run_executor=False,
+                )
+                svc.save_operation(
+                    "corridor-a", "save-00000001", 0,
+                    {{"S2": {{"attach_a": [50, 0, 12], "attach_b": [95, 0, 12]}}}},
+                )
+                att = svc.start_run("corridor-a", "run-00000001")
+                svc.store.set_run_state(att["attempt_id"], "running", "fit")
+                print(att["attempt_id"], flush=True)
+                time.sleep(60)  # dies here mid-run — never finishes
+                """
+            )
+        )
+        proc = subprocess.Popen(
+            [sys.executable, str(child)],
+            stdout=subprocess.PIPE,
+            env={**os.environ, "PYTHONPATH": str(src)},
+        )
+        assert proc.stdout is not None
+        attempt_id = int(proc.stdout.readline().decode().strip())
+        proc.kill()  # real SIGKILL mid-run
+        proc.wait(timeout=5)
+        assert proc.returncode != 0
+
+        # A fresh process over the same database: restart recovery must
+        # mark the orphaned run interrupted, and retry must recompute
+        # from durable inputs.
+        from cateniq.service import CorridorService
+
+        svc = CorridorService(fixtures, db, run_executor=False)
+        try:
+            run = svc.store.run_by_id(attempt_id)
+            assert run is not None and run["state"] == "interrupted"
+            retry = svc.start_run("corridor-a", "run-00000002", retry_of=attempt_id)
+            svc.execute_next()
+            done = svc.store.run_by_id(retry["attempt_id"])
+            assert done is not None and done["state"] == "succeeded"
+            assert done["retry_of"] == attempt_id
+            assert done["input_revision"] == 1
+        finally:
+            svc.shutdown()
+
+
+class TestExecutorResponsiveness:
+    """CAT-011: the single executor slot is bounded *and* non-blocking —
+    the API stays responsive while a slow run occupies the slot."""
+
+    def test_api_stays_responsive_during_a_slow_run(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        fixtures = Path(__file__).resolve().parents[2] / "fixtures"
+        from cateniq.service import CorridorService
+
+        svc = CorridorService(fixtures, tmp_path / "reviews.db", run_executor=True)
+        try:
+            # A slow fit: 100 ms per span keeps the run in-flight for a
+            # measurable window.
+            original = svc._fit_for
+
+            def slow(*args: object, **kwargs: object) -> dict:
+                time.sleep(0.1)
+                return original(*args, **kwargs)
+
+            monkeypatch.setattr(svc, "_fit_for", slow)
+            svc.save_operation(
+                "corridor-a",
+                "save-00000001",
+                0,
+                {"S2": {"attach_a": [50, 0, 12], "attach_b": [95, 0, 12]}},
+            )
+            out = svc.start_run("corridor-a", "run-00000001")
+            for _ in range(100):
+                run = svc.store.run_by_id(out["attempt_id"])
+                if run and run["state"] == "running":
+                    break
+                time.sleep(0.01)
+            assert run is not None and run["state"] == "running"
+            # While the worker is mid-run, a store read completes fast —
+            # the executor slot does not block the serving path.
+            t0 = time.monotonic()
+            state = svc.review_state("corridor-a")
+            elapsed = time.monotonic() - t0
+            assert elapsed < 0.5, f"review read blocked {elapsed:.2f}s"
+            assert state["revision"] == 1
+            # The run still completes through the executor.
+            for _ in range(200):
+                done = svc.store.run_by_id(out["attempt_id"])
+                if done and done["state"] in (
+                    "succeeded",
+                    "failed",
+                ):
+                    break
+                time.sleep(0.05)
+            assert done is not None and done["state"] == "succeeded"
+        finally:
+            svc.shutdown()

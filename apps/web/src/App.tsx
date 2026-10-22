@@ -222,28 +222,64 @@ export default function App() {
     return edits;
   }
 
+  function editsEqual(
+    a: Record<string, { attach_a: Vec3; attach_b: Vec3 }>,
+    b: Record<string, { attach_a: Vec3; attach_b: Vec3 }>,
+  ): boolean {
+    const ka = Object.keys(a);
+    return (
+      ka.length === Object.keys(b).length &&
+      ka.every(
+        (k) =>
+          b[k] &&
+          a[k].attach_a.every((v, i) => v === b[k].attach_a[i]) &&
+          a[k].attach_b.every((v, i) => v === b[k].attach_b[i]),
+      )
+    );
+  }
+
   async function save() {
     const s = store.get();
-    if (!s.datasetId || s.draft) return;
-    store.beginSave();
+    if (!s.datasetId || s.draft || s.savePending) return;
+    const datasetId = s.datasetId;
+    const epoch = loadEpoch;
+    const edits = effectiveEdits();
+    // Reuse the pending operation ID only for an identical payload —
+    // that replays the original save if its response was lost. Any
+    // changed payload is a new operation.
+    const operation_id =
+      s.pendingSave && editsEqual(s.pendingSave.edits, edits)
+        ? s.pendingSave.operation_id
+        : crypto.randomUUID();
+    // The edits the payload acknowledges — the store drops exactly this
+    // prefix of `past` on success, preserving edits made mid-flight.
+    const acked = s.past;
+    store.beginSave({ operation_id, edits });
     try {
-      await postOperation(s.datasetId, {
-        operation_id: crypto.randomUUID(),
+      await postOperation(datasetId, {
+        operation_id,
         base_revision: s.revision,
-        edits: effectiveEdits(),
+        edits,
       });
-      const review = await fetchReview(s.datasetId);
+      const review = await fetchReview(datasetId);
+      // Superseded by a dataset switch or newer load — that session owns
+      // the state now; drop this response rather than overwriting it.
+      if (epoch !== loadEpoch || store.get().datasetId !== datasetId) return;
       store.recordSaved(
         review.revision,
         review.constraints,
         review.accepted,
+        acked,
       );
     } catch (e) {
-      const conflict = (e as { conflict?: { detail: string; current_revision: number } }).conflict;
+      if (epoch !== loadEpoch || store.get().datasetId !== datasetId) return;
+      const conflict = (
+        e as { conflict?: { detail: string; current_revision: number } }
+      ).conflict;
       if (conflict && typeof conflict === "object") {
         store.setConflict(conflict.detail, conflict.current_revision);
       } else {
-        store.fitFailed();
+        store.saveFailed();
         store.setError(String(e));
       }
     }

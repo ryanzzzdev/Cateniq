@@ -66,3 +66,7 @@ The three disagreeing budget records are unified at p50 <= 50 ms / p95 <= 100 ms
 - Backend: `ruff check`/`format` clean, strict `mypy` clean, 54 pytest pass (15 fitting-production incl. new wrong-but-convergent/lateral/refit-count regressions).
 - Frontend: `tsc -b` clean, 27 vitest pass (11 store incl. cancel/move invalidation), production build clean.
 - Browser: 12 workbench specs pass incl. new delayed-response cancel, lateral rejection, and converged-with-issues journeys.
+
+## Independent fix confirmation at 296647d
+
+Prior three M2 findings verified resolved by `620604f` and passing regression coverage in the current 80-backend/27-unit/17-browser baseline. M2 remains Complete; new durable-lifecycle findings are tracked in the [M3 review](m3-exit-review.md).

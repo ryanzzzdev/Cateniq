@@ -36,6 +36,19 @@ test("a clean run can be accepted for the current revision", async ({
   await expect(page.getByTestId("run-status")).toContainText("0 issue");
   await page.getByTestId("accept-button").click();
   await expect(page.getByTestId("accepted-badge")).toContainText("accepted");
+
+  // Local edits after acceptance: the badge must scope itself to the
+  // saved revision and Accept must stay disabled while dirty — the
+  // displayed geometry is no longer the accepted geometry.
+  await editB1AndCommit(page, "9");
+  await expect(page.getByTestId("accepted-badge")).toContainText(
+    "unsaved edits differ",
+  );
+  await expect(page.getByTestId("accept-button")).toBeDisabled();
+  await page.keyboard.press("Control+z");
+  await expect(page.getByTestId("accepted-badge")).not.toContainText(
+    "unsaved edits differ",
+  );
 });
 
 test("save then reopen restores the durable correction", async ({ page }) => {
@@ -94,4 +107,69 @@ test("the exported review reconstructs through the verifier", async ({
     .then((r) => r.json());
   expect(verified.ok).toBe(true);
   expect(verified.dataset_id).toBe("corridor-b");
+});
+
+test("a save landing late preserves edits made while it was in flight", async ({
+  page,
+}) => {
+  let release!: () => void;
+  const held = new Promise<void>((r) => {
+    release = r;
+  });
+  await page.route("**/review/operations", async (route) => {
+    const response = await route.fetch();
+    await held;
+    await route.fulfill({ response });
+  });
+  await loadCorridorB(page);
+  await editB1AndCommit(page, "10.2");
+  await page.getByTestId("save-button").click();
+  await expect(
+    page.getByRole("button", { name: "Saving…" }),
+  ).toBeVisible();
+
+  // A newer local edit commits while the save response is delayed.
+  await editB1AndCommit(page, "10.4");
+  release();
+  // The response acks only the submitted edits — the newer one survives
+  // as an unsaved local change on top of the saved baseline.
+  await expect(page.getByTestId("unsaved-note")).toContainText(
+    "1 local edit",
+    { timeout: 15000 },
+  );
+  await expect(page.getByTestId("coord-b-2")).toHaveValue("10.40");
+});
+
+test("a failed save re-enables retry and replays the operation", async ({
+  page,
+}) => {
+  await loadCorridorB(page);
+  await editB1AndCommit(page, "10.6");
+
+  // The first attempt never reaches the server.
+  let aborted = false;
+  await page.route("**/review/operations", async (route) => {
+    if (!aborted) {
+      aborted = true;
+      await route.abort();
+    } else {
+      await route.continue();
+    }
+  });
+  await page.getByTestId("save-button").click();
+  // The error is reported and — critically — Save is usable again:
+  // the local edit is preserved and retry is not permanently disabled.
+  await expect(page.getByTestId("save-button")).toBeEnabled({
+    timeout: 15000,
+  });
+  await expect(page.getByTestId("unsaved-note")).toContainText(
+    "1 local edit",
+  );
+
+  await page.getByTestId("save-button").click();
+  await expect(page.getByTestId("unsaved-note")).toHaveCount(0, {
+    timeout: 15000,
+  });
+  const rev = await page.getByTestId("revision").textContent();
+  expect(rev).toMatch(/rev \d+/);
 });

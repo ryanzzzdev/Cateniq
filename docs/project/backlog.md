@@ -22,7 +22,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 ## Delivery notes
 
-M1 and M2 review findings verified resolved. M3 durable review complete (CAT-009–CAT-011); M4 verification/packaging tasks remain Backlog. Next unused ID: CAT-014.
+M2 review fixes verified; M1 and M2 remain Complete. M3 findings from the independent exit review resolved and verified (see [M3 exit review](evidence/m3-exit-review.md)) — M3 Complete. M4 verification/packaging tasks remain Backlog. Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -315,6 +315,8 @@ Persist correction history and bounded processing attempts without losing user c
 
 Frozen schemas/limits/migration in the lifecycle contract; SQLite store (reviews, append-only operations, runs, acceptance) with conditional saves + operation-ID idempotency; save/reopen/conflict/export routes; export verifier. Bounded single-slot executor (queue depth 8, 30 s cooperative deadline) runs attempts against `constraints_at(input_revision)`; restart marks queued/running `interrupted`; retry links attempts; late output cannot become current validation; acceptance requires current revision + clean succeeded run. 26 store/API tests in `backend/tests/test_store.py`; fault evidence in `docs/project/evidence/m3-review-lifecycle.md`.
 
+Independent review at `296647d` reopened this for coherent snapshots and execution-bound verification — resolved: `store.snapshot()` reads the whole review state under one lock (concurrent-save coherence test); a real SIGKILL child-process test now evidences restart recovery, and an executor-responsiveness test plus an explicit cooperative-deadline scope note close the bound gap.
+
 ### Notes
 
 Refine exact execution mechanism here; no distributed task broker or production identity system.
@@ -346,6 +348,8 @@ Make durable review understandable and complete in the workbench.
 
 Workbench review flow implemented (`apps/web/src/api.ts`, `store.ts`, `panels.tsx`, `App.tsx`): saved constraint set is the durable baseline under local edits; Save posts the full effective constraint set with the displayed revision; conflicts surface the authoritative revision while the losing edits stay inspectable; run validation polls a durable attempt; Accept binds to the current revision's clean run; revision/acceptance badges shown. Browser evidence (`apps/web/e2e/review.spec.ts`): save→reload restores the correction; two sessions on corridor-b produce a 409 conflict with the loser preserved; a clean run accepts and the badge shows it; the export verifies via `/api/export/verify`. Integration also fixed a dataset-load race (`loadEpoch` correlation — a superseded openDataset response can no longer overwrite newer state). 17 e2e + 27 vitest green.
 
+Independent review at `296647d` reopened this for late-save edit loss, disabled save retry and dirty-state acceptance — resolved: `recordSaved` acks only the submitted edit prefix with dataset/load-epoch correlation; `saveFailed` clears the flag and `pendingSave` replays the operation ID; `canAccept` requires a clean workbench and the badge scopes itself when dirty. Store + e2e regressions cover each.
+
 ### Notes
 
 No automatic merge and no claims that corrections are unquestioned ground truth.
@@ -376,6 +380,8 @@ Produce reproducible evidence for lifecycle correctness under faults.
 ### Completion evidence
 
 Fault/race matrix recorded in `docs/project/evidence/m3-review-lifecycle.md`: concurrent same-base saves (exactly one winner), op-ID replay/conflict, late-run non-current, acceptance races (stale accept 409), process-restart interruption, linked retry, deadline failure, solver-failure staging, queue-depth 503, corrupt DB, broken write path, export reconstruction/mismatch — all against real SQLite and a real worker executor. 80 backend tests; 17 browser checks. Limitations documented (simulated restart, injected write fault, unbounded terminal history, no merge).
+
+Independent review at `296647d` reopened this for race regressions and actual process-recovery/deadline evidence — resolved: coherent-snapshot regression under a concurrent saver, real SIGKILL recovery test, executor-responsiveness test, and an explicit cooperative-deadline scope statement. See [M3 exit review](evidence/m3-exit-review.md).
 
 ### Notes
 

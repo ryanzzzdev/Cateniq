@@ -2,7 +2,7 @@
 
 Date: 2026-10-25
 Environment: Linux kernel 7.0, Intel Core Ultra 5 225H (14 threads), 30 GB RAM; Python 3.14.4/FastAPI, SQLite (WAL); Node 22, Chromium via Playwright (headless).
-Procedure: `cd backend && uv run pytest` (80 checks), `cd apps/web && npx playwright test` (17 browser checks incl. `e2e/review.spec.ts`), `npx vitest run` (27). Fault tests run on real SQLite files under `tmp_path`, a real worker-thread executor (disabled only where a test drives `execute_next` deterministically), and a real FastAPI `TestClient`.
+Procedure: `cd backend && uv run pytest` (83 checks), `cd apps/web && npx playwright test` (19 browser checks incl. `e2e/review.spec.ts`), `npx vitest run` (30). Fault tests run on real SQLite files under `tmp_path`, a real worker-thread executor (disabled only where a test drives `execute_next` deterministically), and a real FastAPI `TestClient`.
 
 ## Frozen limits (contract: `features/review-lifecycle.md`)
 
@@ -34,12 +34,20 @@ Procedure: `cd backend && uv run pytest` (80 checks), `cd apps/web && npx playwr
 | Acceptance racing a later save | `test_acceptance_round_trip_and_race` | Accepting the stale revision/run is a 409; the new revision is unaccepted |
 | Dataset-load response race | `loadEpoch` in `apps/web/src/App.tsx`; `review.spec.ts` reload flow | A superseded `openDataset` response is discarded — `datasetId` and loaded data can no longer mismatch |
 | Export replayed against the verifier | `test_export_reconstructs_and_rejects_mismatch`, `review.spec.ts` export test | Operation chain reconstructs the declared constraints; tampered constraints, broken chains, unknown spans and foreign dataset identities are rejected 422 |
+| Export under a concurrent saver | `test_export_is_coherent_under_concurrent_saves` | `store.snapshot()` reads revision, constraints, history, acceptance and validation under one lock; every export verifies against its declared revision |
+| Real process kill mid-run | `test_process_kill_marks_run_interrupted_and_retry_recovers` | A child process marking a run `running` is SIGKILLed; a fresh process marks it `interrupted` and a linked retry recomputes and `succeeded`s — OS-level evidence, not simulated |
+| API responsiveness during a slow run | `test_api_stays_responsive_during_a_slow_run` | A 100 ms/span fit occupying the executor slot leaves `review_state` responding in <0.5 s; the run still completes through the worker |
 
 ## Honest limitations
 
-- **Process-restart simulation** uses a second `ReviewStore`/`CorridorService` over the same file — it exercises durable-state recovery, not an OS-level kill mid-write. SQLite's own atomicity covers torn writes; no power-cut durability is claimed.
+- **Process-restart evidence** is now a real SIGKILL of a child process (`TestRealProcessRecovery`). The earlier simulated-restart test is retained as a cheaper regression. Recovery is still process-level, not power-cut durability — SQLite's own atomicity covers torn writes.
+- **Deadline scope** — the 30 s deadline is cooperative between per-span stages and does not preempt a single stuck solve within one span (recorded as accepted scope in the contract).
 - **Write-failure injection** closes the connection in-session (deterministic). An earlier read-only-file variant was dropped as flaky: the failed constructor leaked a connection and WAL sidecars made the outcome filesystem-dependent. The injected fault still proves the contract: failures surface as errors and committed state survives.
 - **Queue-depth bound** counts active (queued/running) attempts; terminal attempts are free. The bound protects the executor slot, not total attempt volume — a caller can still accumulate finished run history unboundedly (intended: history is the audit trail).
 - **Local undo/redo** remains a client concern until saved; restoring an earlier correction set is a normal save producing a new revision — there is no dedicated "undo saved revision" UI.
 - **No merge**: a conflicted save is rejected, not merged — by contract.
 - Acceptance is workflow bookkeeping, not an electrical-safety certification.
+
+## Independent review qualification
+
+The baseline checks above were reproduced at `296647d`; the review's four findings and verification gap were addressed — coherent `store.snapshot()` reads, submitted-snapshot save acks, save-failure retry with operation-ID replay, dirty-state acceptance scoping, a real SIGKILL process-recovery test and executor responsiveness evidence. See [independent exit review](m3-exit-review.md) for the findings and resolution.

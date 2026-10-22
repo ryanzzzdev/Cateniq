@@ -54,7 +54,7 @@ Excluded: persistence guarantees and reviewer acceptance; the UI must identify t
 
 Outcome: saved corrections survive restart and rerun, conflicts are visible and exports reconstruct the reviewed revision.
 
-Scope: SQLite revisions and operation IDs, bounded processing attempts, interrupted-run recovery, client save/reload/conflict flow, validation/acceptance and export. Tasks: [CAT-009](backlog.md#cat-009)–[CAT-011](backlog.md#cat-011). All exit criteria verified — see `docs/project/evidence/m3-review-lifecycle.md`.
+Scope: SQLite revisions and operation IDs, bounded processing attempts, interrupted-run recovery, client save/reload/conflict flow, validation/acceptance and export. Tasks: [CAT-009](backlog.md#cat-009)–[CAT-011](backlog.md#cat-011). Implementation and baseline tests exist, but [independent review](evidence/m3-exit-review.md) reopened correctness and real-process verification gaps.
 
 Dependencies: M2. Persistence/API contracts may be refined earlier, but durable end-to-end acceptance requires the computed workflow.
 

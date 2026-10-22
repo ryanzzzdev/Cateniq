@@ -180,3 +180,60 @@ describe("workbench store", () => {
     expect(s.get().lastFit["S2"].version).toBe(5);
   });
 });
+  it("a late save acks only the submitted edits — mid-flight edits survive", () => {
+    const s = readyStore();
+    s.beginDraft("S2", "b");
+    s.moveDraft([95, 0, 12]);
+    s.commitDraft();
+    const submitted = s.get().past; // what the save payload acknowledges
+    // A newer edit lands while the save is in flight.
+    s.beginDraft("S2", "b");
+    s.moveDraft([95, 0, 13]);
+    s.commitDraft();
+    s.recordSaved(
+      1,
+      { S2: { attach_a: [50, 0, 12], attach_b: [95, 0, 12] } },
+      null,
+      submitted,
+    );
+    // The acknowledged edit left; the newer one is preserved unsaved.
+    expect(s.get().past).toHaveLength(1);
+    expect(s.attachFor("S2", "b")).toEqual([95, 0, 13]);
+    expect(s.get().revision).toBe(1);
+  });
+
+  it("a save landing after an undo keeps the diverged history", () => {
+    const s = readyStore();
+    s.beginDraft("S2", "b");
+    s.moveDraft([95, 0, 12]);
+    s.commitDraft();
+    const submitted = s.get().past;
+    s.undo(); // diverges the history prefix while the save is in flight
+    s.beginDraft("S2", "b");
+    s.moveDraft([95, 0, 11]);
+    s.commitDraft();
+    s.recordSaved(
+      1,
+      { S2: { attach_a: [50, 0, 12], attach_b: [95, 0, 12] } },
+      null,
+      submitted,
+    );
+    // Prefix diverged — nothing silently dropped, work preserved unsaved.
+    expect(s.get().past).toHaveLength(1);
+    expect(s.attachFor("S2", "b")).toEqual([95, 0, 11]);
+  });
+
+  it("saveFailed clears pending but keeps the operation for retry", () => {
+    const s = readyStore();
+    const op = {
+      operation_id: "op-retry-0001",
+      edits: { S2: { attach_a: [50, 0, 12] as Vec3, attach_b: [95, 0, 12] as Vec3 } },
+    };
+    s.beginSave(op);
+    expect(s.get().savePending).toBe(true);
+    s.saveFailed();
+    expect(s.get().savePending).toBe(false);
+    expect(s.get().pendingSave).toEqual(op); // retry replays the same ID
+    s.recordSaved(1, op.edits, null, []);
+    expect(s.get().pendingSave).toBeNull();
+  });

@@ -480,14 +480,15 @@ class CorridorService:
         )
 
     def export_review(self, dataset_id: str) -> dict[str, Any]:
-        """Schema-versioned snapshot of the review's durable state."""
+        """Schema-versioned snapshot of the review's durable state — one
+        coherent read so a concurrent save cannot split fields."""
         m = self._manifest(dataset_id)
-        state = self.review_state(dataset_id)
+        snap = self.store.snapshot(dataset_id, self._manifest_hash(dataset_id))
         return {
             "schema_version": 1,
             "dataset": {
                 "dataset_id": m.dataset_id,
-                "manifest_hash": state["manifest_hash"],
+                "manifest_hash": self._manifest_hash(dataset_id),
                 "coordinate_convention": m.coordinate_convention,
                 "generator": m.generator,
             },
@@ -500,11 +501,11 @@ class CorridorService:
                     "lateral_tolerance_m": profile.LATERAL_TOLERANCE_M,
                 },
             },
-            "revision": state["revision"],
-            "operations": self.store.history(dataset_id),
-            "constraints": state["constraints"],
-            "accepted": state["accepted"],
-            "validation": self.store.current_validation(dataset_id),
+            "revision": snap["revision"],
+            "operations": snap["operations"],
+            "constraints": snap["constraints"],
+            "accepted": snap["accepted"],
+            "validation": snap["current_validation"],
         }
 
     def verify_export(self, export: dict[str, Any]) -> dict[str, Any]:

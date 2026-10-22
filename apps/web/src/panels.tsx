@@ -102,7 +102,11 @@ export function PropertiesPanel({
   const spanEdits = state.past.filter((e) => e.spanId === selectedSpanId);
 
   const run = state.run;
+  // Acceptance scopes to the saved revision — a dirty workbench displays
+  // geometry the accepted revision does not contain.
+  const dirty = state.draft !== null || state.past.length > 0;
   const canAccept =
+    !dirty &&
     !!run &&
     run.state === "succeeded" &&
     run.input_revision === state.revision &&
@@ -118,7 +122,8 @@ export function PropertiesPanel({
         {state.accepted && (
           <span className="muted" data-testid="accepted-badge">
             {" "}
-            accepted (rev {state.accepted.revision})
+            accepted (rev {state.accepted.revision}
+            {dirty ? " — unsaved edits differ" : ""})
           </span>
         )}
       </h2>

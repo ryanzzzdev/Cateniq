@@ -24,6 +24,8 @@ export interface Draft {
   snappedTo: string | null;
 }
 
+export type SavedEdits = Record<string, { attach_a: Vec3; attach_b: Vec3 }>;
+
 export interface WorkbenchState {
   loadState: LoadState;
   error: string | null;
@@ -47,12 +49,15 @@ export interface WorkbenchState {
   /** Authoritative server revision; edits beyond it are local unsaved. */
   revision: number;
   /** Saved constraint set — the durable baseline under local edits. */
-  savedEdits: Record<string, { attach_a: Vec3; attach_b: Vec3 }>;
+  savedEdits: SavedEdits;
   /** Acceptance recorded for the current revision (null otherwise). */
   accepted: Accepted | null;
   /** A save rejected because another session advanced the revision. */
   conflict: { detail: string; current_revision: number } | null;
   savePending: boolean;
+  /** Last save attempt — kept so a retry after an uncertain response
+   *  replays the same operation ID for the same payload (idempotent). */
+  pendingSave: { operation_id: string; edits: SavedEdits } | null;
   /** Latest validation run record (durable attempt, not a preview). */
   run: RunRecord | null;
   runPending: boolean;
@@ -96,6 +101,7 @@ const initial: WorkbenchState = {
   accepted: null,
   conflict: null,
   savePending: false,
+  pendingSave: null,
   run: null,
   runPending: false,
 };
@@ -351,9 +357,16 @@ export class WorkbenchStore {
     });
   }
 
-  /** Mark a save request in flight. */
-  beginSave() {
-    this.set({ savePending: true, conflict: null });
+  /** Mark a save request in flight, retaining the submitted operation
+   *  so a retry after an uncertain response can replay it. */
+  beginSave(op: { operation_id: string; edits: SavedEdits }) {
+    this.set({ savePending: true, conflict: null, pendingSave: op });
+  }
+
+  /** A save failed without reaching or committing on the server —
+   *  the operation stays pending so retry replays the same ID. */
+  saveFailed() {
+    this.set({ savePending: false });
   }
 
   /** A save was rejected for a stale base — local edits stay untouched so
@@ -365,30 +378,35 @@ export class WorkbenchStore {
     });
   }
 
-  /** Authoritative review state applied after save or reload: the saved
-   *  constraint set becomes the durable baseline and local `past` (the
-   *  edits that were just saved) clears. */
+  /** Authoritative review state applied after a save: the saved
+   *  constraint set becomes the durable baseline and the acknowledged
+   *  edits leave `past`. Edits committed while the save was in flight —
+   *  or after an undo changed the history prefix — are preserved as
+   *  still-unsaved local edits on top of the new baseline. */
   recordSaved(
     revision: number,
-    savedEdits: WorkbenchState["savedEdits"],
+    savedEdits: SavedEdits,
     accepted: Accepted | null,
+    acked: EditCommand[],
   ) {
-    this.set({
+    const prefixAcked =
+      acked.length <= this.state.past.length &&
+      acked.every((c, i) => this.state.past[i] === c);
+    const past = prefixAcked ? this.state.past.slice(acked.length) : this.state.past;
+    const next: WorkbenchState = {
+      ...this.state,
       savePending: false,
       conflict: null,
+      pendingSave: null,
       revision,
       savedEdits,
       accepted,
-      past: [],
+      past,
       future: [],
       editVersion: this.state.editVersion + 1,
-      lastFit: this.refreshFitStaleness({
-        ...this.state,
-        savedEdits,
-        past: [],
-        draft: this.state.draft,
-      }),
-    });
+    };
+    next.lastFit = this.refreshFitStaleness(next);
+    this.set(next);
   }
 
   /** Mark a validation run request in flight. */

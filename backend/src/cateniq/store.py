@@ -148,31 +148,55 @@ class ReviewStore:
 
     def review(self, dataset_id: str, manifest_hash: str) -> dict[str, Any]:
         """Fetch or create the review bound to one dataset identity."""
-        with self._lock, self._conn:
-            row = self._conn.execute(
-                "SELECT * FROM reviews WHERE dataset_id=?", (dataset_id,)
-            ).fetchone()
-            if row is None:
+        with self._lock:
+            snap = self._ensure_and_snapshot(dataset_id, manifest_hash)
+        return {
+            "dataset_id": dataset_id,
+            "manifest_hash": manifest_hash,
+            "revision": snap["revision"],
+            "accepted": snap["accepted"],
+            "constraints": snap["constraints"],
+        }
+
+    def snapshot(self, dataset_id: str, manifest_hash: str) -> dict[str, Any]:
+        """One coherent read of revision, constraints, operation history,
+        acceptance and current validation — all under the store lock so a
+        concurrent save can never interleave between them."""
+        with self._lock:
+            return self._ensure_and_snapshot(dataset_id, manifest_hash)
+
+    def _ensure_and_snapshot(
+        self, dataset_id: str, manifest_hash: str
+    ) -> dict[str, Any]:
+        """Caller must hold ``self._lock``."""
+        row = self._conn.execute(
+            "SELECT * FROM reviews WHERE dataset_id=?", (dataset_id,)
+        ).fetchone()
+        if row is None:
+            with self._conn:
                 self._conn.execute(
                     "INSERT INTO reviews(dataset_id, manifest_hash,"
                     " current_revision, created_at) VALUES (?,?,0,?)",
                     (dataset_id, manifest_hash, _now()),
                 )
-                revision = 0
-            else:
-                if row["manifest_hash"] != manifest_hash:
-                    raise StoreError(
-                        f"dataset {dataset_id} manifest changed: stored "
-                        f"{row['manifest_hash'][:12]} != {manifest_hash[:12]}"
-                    )
-                revision = row["current_revision"]
+            revision = 0
+        else:
+            if row["manifest_hash"] != manifest_hash:
+                raise StoreError(
+                    f"dataset {dataset_id} manifest changed: stored "
+                    f"{row['manifest_hash'][:12]} != {manifest_hash[:12]}"
+                )
+            revision = row["current_revision"]
         acc = self._conn.execute(
             "SELECT * FROM acceptance WHERE review=? AND revision=?",
             (dataset_id, revision),
         ).fetchone()
+        ops = self._conn.execute(
+            "SELECT seq, operation_id, base_revision, result_revision,"
+            " payload, created_at FROM operations WHERE review=? ORDER BY seq",
+            (dataset_id,),
+        ).fetchall()
         return {
-            "dataset_id": dataset_id,
-            "manifest_hash": manifest_hash,
             "revision": revision,
             "accepted": (
                 {
@@ -184,6 +208,18 @@ class ReviewStore:
                 else None
             ),
             "constraints": self.constraints(dataset_id),
+            "operations": [
+                {
+                    "seq": o["seq"],
+                    "operation_id": o["operation_id"],
+                    "base_revision": o["base_revision"],
+                    "result_revision": o["result_revision"],
+                    "payload": json.loads(o["payload"]),
+                    "created_at": o["created_at"],
+                }
+                for o in ops
+            ],
+            "current_validation": self.current_validation(dataset_id),
         }
 
     def constraints(self, dataset_id: str) -> dict[str, Any]:
@@ -456,10 +492,3 @@ class ReviewStore:
             (dataset_id,),
         ).fetchall()
         return [dict(r) | {"payload": json.loads(r["payload"])} for r in rows]
-
-    def runs_for_export(self, dataset_id: str) -> list[dict[str, Any]]:
-        rows = self._conn.execute(
-            "SELECT * FROM runs WHERE review=? ORDER BY attempt_id",
-            (dataset_id,),
-        ).fetchall()
-        return [dict(r) for r in rows]

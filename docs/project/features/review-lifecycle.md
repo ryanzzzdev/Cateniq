@@ -94,6 +94,6 @@ Operation records persist for the lifetime of the store file; there is no TTL an
 ### Bounded limits
 
 - One run executor slot (FIFO); queue depth 8 — a ninth admitted run is rejected 503 with a retry hint.
-- Run deadline 30 s, enforced cooperatively between per-span stages (a timed-out run is `failed`, never half-published).
+- Run deadline 30 s, enforced cooperatively between per-span stages (a timed-out run is `failed`, never half-published). The deadline is a cooperative bound on work *between* solver calls — it does not preempt a single stuck or runaway solve within one span. Accepted scope: per-span solves are treated as bounded work in this profile; a preemptive kill of an in-progress solve is not claimed. API responsiveness while the slot is occupied is verified separately.
 - Operation payload: ≤128 edited endpoints, `operation_id` 8–64 chars, coordinates finite numbers.
 - Algorithm identity `vertex-catenary-1.0` + frozen profile constants recorded on every attempt.
