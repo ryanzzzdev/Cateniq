@@ -39,8 +39,19 @@ class VerifyRequest(BaseModel):
     export: dict[str, Any]
 
 
+class RunRequest(BaseModel):
+    operation_id: str
+
+
+class AcceptRequest(BaseModel):
+    revision: int
+    run_id: int
+
+
 def create_app(
-    fixtures_dir: Path | None = None, db_path: Path | None = None
+    fixtures_dir: Path | None = None,
+    db_path: Path | None = None,
+    run_executor: bool = True,
 ) -> FastAPI:
     app = FastAPI(title="cateniq")
     root = fixtures_dir or Path(
@@ -49,7 +60,8 @@ def create_app(
     db = db_path or (
         Path(os.environ["CATENIQ_DB_PATH"]) if "CATENIQ_DB_PATH" in os.environ else None
     )
-    service = CorridorService(root, db)
+    service = CorridorService(root, db, run_executor)
+    app.state.service = service
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
@@ -131,6 +143,51 @@ def create_app(
             raise HTTPException(422, str(exc)) from exc
         except (ManifestError, FileNotFoundError) as exc:
             raise HTTPException(404, str(exc)) from exc
+
+    # -- bounded run attempts --------------------------------------------------
+
+    @app.post("/api/datasets/{dataset_id}/review/runs")
+    def start_run(dataset_id: str, body: RunRequest) -> dict[str, Any]:
+        try:
+            return service.start_run(dataset_id, body.operation_id)
+        except StoreError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        except (ManifestError, FileNotFoundError) as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @app.get("/api/datasets/{dataset_id}/review/runs/current")
+    def current_run(dataset_id: str) -> dict[str, Any]:
+        try:
+            return service.current_validation(dataset_id)
+        except (ManifestError, FileNotFoundError) as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @app.get("/api/datasets/{dataset_id}/review/runs/{attempt_id}")
+    def get_run(dataset_id: str, attempt_id: int) -> dict[str, Any]:
+        try:
+            return service.run_status(dataset_id, attempt_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @app.post("/api/datasets/{dataset_id}/review/runs/{attempt_id}/retry")
+    def retry_run(dataset_id: str, attempt_id: int, body: RunRequest) -> dict[str, Any]:
+        try:
+            return service.start_run(dataset_id, body.operation_id, retry_of=attempt_id)
+        except StoreError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        except (ManifestError, FileNotFoundError) as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @app.post("/api/datasets/{dataset_id}/review/accept")
+    def accept(dataset_id: str, body: AcceptRequest) -> dict[str, Any]:
+        try:
+            return service.accept(dataset_id, body.revision, body.run_id)
+        except ConflictError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except ValidationError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except (ManifestError, FileNotFoundError, StoreError) as exc:
+            raise HTTPException(400, str(exc)) from exc
 
     return app
 

@@ -259,3 +259,137 @@ class TestReviewApi:
         other["revision"] = 1
         bad2 = client.post("/api/export/verify", json={"export": other})
         assert bad2.status_code == 422
+
+
+class TestRunApi:
+    """Run lifecycle through the API with the executor driven manually —
+    deterministic, no timing dependencies."""
+
+    @pytest.fixture
+    def client(self, tmp_path: Path):
+        from fastapi.testclient import TestClient
+
+        from cateniq.app import create_app
+
+        fixtures = Path(__file__).resolve().parents[2] / "fixtures"
+        return TestClient(
+            create_app(fixtures, tmp_path / "reviews.db", run_executor=False)
+        )
+
+    def _save(self, client) -> None:
+        client.post(
+            "/api/datasets/corridor-a/review/operations",
+            json={"operation_id": "save-0001", "base_revision": 0, "edits": EDITS},
+        )
+
+    def _drain(self, client) -> None:
+        svc = client.app.state.service
+        while svc.execute_next():
+            pass
+
+    def test_run_executes_against_declared_revision(self, client) -> None:
+        self._save(client)
+        out = client.post(
+            "/api/datasets/corridor-a/review/runs",
+            json={"operation_id": "run-00001"},
+        ).json()
+        assert out["state"] == "queued"
+        # Dedupe: the same run operation ID does not create a second attempt.
+        again = client.post(
+            "/api/datasets/corridor-a/review/runs",
+            json={"operation_id": "run-00001"},
+        ).json()
+        assert again["replayed"] is True
+        self._drain(client)
+        run = client.get(
+            f"/api/datasets/corridor-a/review/runs/{out['attempt_id']}"
+        ).json()
+        assert run["state"] == "succeeded"
+        assert run["input_revision"] == 1
+        assert run["result"]["issue_count"] >= 1  # S4 stays unresolved
+
+    def test_late_run_output_cannot_validate_the_wrong_revision(self, client) -> None:
+        self._save(client)
+        client.post(
+            "/api/datasets/corridor-a/review/runs",
+            json={"operation_id": "run-00001"},
+        )
+        # A newer save lands before the queued attempt executes.
+        client.post(
+            "/api/datasets/corridor-a/review/operations",
+            json={
+                "operation_id": "save-0002",
+                "base_revision": 1,
+                "edits": {"S2": {"attach_a": [50, 0, 12], "attach_b": [95, 0, 12.5]}},
+            },
+        )
+        self._drain(client)
+        cur = client.get("/api/datasets/corridor-a/review/runs/current").json()
+        assert cur["run"] is None  # succeeded, but for revision 1 — not current
+
+    def test_interrupted_run_retries_as_linked_attempt(self, client) -> None:
+        # Simulate an interrupted attempt, then retry.
+        self._save(client)
+        svc = client.app.state.service
+        attempt = svc.store.create_run("corridor-a", "run-00001", 1)
+        svc.store.set_run_state(attempt["attempt_id"], "interrupted", "fit")
+        out = client.post(
+            f"/api/datasets/corridor-a/review/runs/{attempt['attempt_id']}/retry",
+            json={"operation_id": "run-00002"},
+        ).json()
+        assert out["state"] == "queued"
+        self._drain(client)
+        run = client.get(
+            f"/api/datasets/corridor-a/review/runs/{out['attempt_id']}"
+        ).json()
+        assert run["state"] == "succeeded" and run["retry_of"] == attempt["attempt_id"]
+
+    def test_deadline_failure_never_reports_success(self, client) -> None:
+        self._save(client)
+        client.app.state.service._run_deadline_s = 0.0
+        out = client.post(
+            "/api/datasets/corridor-a/review/runs",
+            json={"operation_id": "run-00001"},
+        ).json()
+        self._drain(client)
+        run = client.get(
+            f"/api/datasets/corridor-a/review/runs/{out['attempt_id']}"
+        ).json()
+        assert run["state"] == "failed"
+
+    def test_acceptance_round_trip_and_race(self, client) -> None:
+        # corridor-b is clean — a succeeded run has no blocking issues.
+        out = client.post(
+            "/api/datasets/corridor-b/review/runs",
+            json={"operation_id": "run-00001"},
+        ).json()
+        self._drain(client)
+        run = client.get(
+            f"/api/datasets/corridor-b/review/runs/{out['attempt_id']}"
+        ).json()
+        assert run["state"] == "succeeded"
+        assert run["result"]["issue_count"] == 0
+        acc = client.post(
+            "/api/datasets/corridor-b/review/accept",
+            json={"revision": 0, "run_id": out["attempt_id"]},
+        )
+        assert acc.status_code == 200
+        state = client.get("/api/datasets/corridor-b/review").json()
+        assert state["accepted"]["revision"] == 0
+        # A later edit leaves the new revision unaccepted.
+        client.post(
+            "/api/datasets/corridor-b/review/operations",
+            json={
+                "operation_id": "save-0001",
+                "base_revision": 0,
+                "edits": {"B1": {"attach_a": [0, 0, 12], "attach_b": [50, 0, 12]}},
+            },
+        )
+        state = client.get("/api/datasets/corridor-b/review").json()
+        assert state["revision"] == 1 and state["accepted"] is None
+        # And accepting the stale revision/run is a conflict.
+        stale = client.post(
+            "/api/datasets/corridor-b/review/accept",
+            json={"revision": 0, "run_id": out["attempt_id"]},
+        )
+        assert stale.status_code == 409

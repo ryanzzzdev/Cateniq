@@ -6,6 +6,9 @@ evaluation/reference assets are never touched here.
 """
 
 import hashlib
+import queue
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +32,9 @@ from cateniq.geometry.catenary import (
 from cateniq.store import (
     ALGORITHM,
     MAX_EDITED_ENDPOINTS,
+    RUN_DEADLINE_S,
     ReviewStore,
+    StoreError,
     ValidationError,
 )
 
@@ -47,12 +52,35 @@ def _columns(arr: ObsArray) -> dict[str, Any]:
 class CorridorService:
     """Serves datasets and diagnostics from a fixtures directory."""
 
-    def __init__(self, fixtures_dir: Path, db_path: Path | None = None) -> None:
+    def __init__(
+        self,
+        fixtures_dir: Path,
+        db_path: Path | None = None,
+        run_executor: bool = True,
+    ) -> None:
         self.fixtures_dir = fixtures_dir
         self._manifests: dict[str, Manifest] = {}
         self.store = ReviewStore(
             db_path if db_path is not None else fixtures_dir.parent / "reviews.db"
         )
+        self._run_deadline_s = RUN_DEADLINE_S
+        self._run_queue: queue.Queue[int] = queue.Queue()
+        self._stop = threading.Event()
+        self._worker: threading.Thread | None = None
+        if run_executor:
+            self.start_executor()
+
+    def start_executor(self) -> None:
+        if self._worker is None or not self._worker.is_alive():
+            self._worker = threading.Thread(
+                target=self._run_loop, name="cateniq-runs", daemon=True
+            )
+            self._worker.start()
+
+    def shutdown(self) -> None:
+        self._stop.set()
+        if self._worker is not None:
+            self._worker.join(timeout=2.0)
 
     def _manifest(self, dataset_id: str) -> Manifest:
         if dataset_id not in self._manifests:
@@ -350,8 +378,19 @@ class CorridorService:
         original and corrected results stay distinguishable.
         """
         m = self._manifest(dataset_id)
+        return self._refit_result(dataset_id, m, edits)
+
+    def _refit_spans(
+        self,
+        m: Manifest,
+        dataset_id: str,
+        edits: dict[str, dict[str, list[float]]],
+        deadline: float | None = None,
+    ) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         for s in m.spans:
+            if deadline is not None and time.monotonic() > deadline:
+                raise StoreError("run deadline exceeded")
             edit = edits.get(s.span_id)
             if edit is None:
                 results.append(self._fit_for(m, s.span_id))
@@ -364,6 +403,16 @@ class CorridorService:
                         edit["attach_b"],
                     )
                 )
+        return results
+
+    def _refit_result(
+        self,
+        dataset_id: str,
+        m: Manifest,
+        edits: dict[str, dict[str, list[float]]],
+        deadline: float | None = None,
+    ) -> dict[str, Any]:
+        results = self._refit_spans(m, dataset_id, edits, deadline)
         return {
             "dataset_id": dataset_id,
             "spans": results,
@@ -492,3 +541,87 @@ class CorridorService:
             "revision": export["revision"],
             "constraints": reconstructed,
         }
+
+    # -- bounded run attempts (CAT-009) ----------------------------------------
+
+    def start_run(
+        self, dataset_id: str, operation_id: str, retry_of: int | None = None
+    ) -> dict[str, Any]:
+        """Admit a validation run for the current revision. The attempt's
+        inputs are the declared revision — not whatever is current when the
+        executor picks it up."""
+        revision = self.review_state(dataset_id)["revision"]
+        attempt = self.store.create_run(dataset_id, operation_id, revision, retry_of)
+        if not attempt["replayed"]:
+            try:
+                self._run_queue.put_nowait(attempt["attempt_id"])
+            except queue.Full as exc:  # admission bound — defence in depth
+                raise StoreError("run queue is full; retry later") from exc
+        return attempt
+
+    def run_status(self, dataset_id: str, attempt_id: int) -> dict[str, Any]:
+        run = self.store.run(dataset_id, attempt_id)
+        if run is None:
+            raise FileNotFoundError(f"no run {attempt_id} for {dataset_id}")
+        return run
+
+    def current_validation(self, dataset_id: str) -> dict[str, Any]:
+        """Latest succeeded run for the current revision (or null)."""
+        return {"run": self.store.current_validation(dataset_id)}
+
+    def accept(self, dataset_id: str, revision: int, run_id: int) -> dict[str, Any]:
+        return self.store.accept(dataset_id, revision, run_id)
+
+    def execute_next(self) -> bool:
+        """Run one queued attempt synchronously — used by the worker loop
+        and by tests that disable the background executor."""
+        try:
+            attempt_id = self._run_queue.get_nowait()
+        except queue.Empty:
+            return False
+        try:
+            self._execute_run(attempt_id)
+        except Exception as exc:
+            run = self.store.run_by_id(attempt_id)
+            stage = run["stage"] if run else "fit"
+            self.store.set_run_state(attempt_id, "failed", stage, {"error": str(exc)})
+        finally:
+            self._run_queue.task_done()
+        return True
+
+    def _run_loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                attempt_id = self._run_queue.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            try:
+                self._execute_run(attempt_id)
+            except Exception as exc:
+                run = self.store.run_by_id(attempt_id)
+                stage = run["stage"] if run else "fit"
+                self.store.set_run_state(
+                    attempt_id, "failed", stage, {"error": str(exc)}
+                )
+            finally:
+                self._run_queue.task_done()
+
+    def _execute_run(self, attempt_id: int) -> None:
+        run = self.store.run_by_id(attempt_id)
+        if run is None or run["state"] != "queued":
+            return
+        dataset_id = run["review"]
+        deadline = time.monotonic() + self._run_deadline_s
+        self.store.set_run_state(attempt_id, "running", "input_validation")
+        # Declared inputs: the constraint set at the run's input revision,
+        # not whatever is current now — a later save cannot rewrite history.
+        constraints = self.store.constraints_at(dataset_id, run["input_revision"])
+        m = self._manifest(dataset_id)
+        self.store.set_run_state(attempt_id, "running", "fit")
+        result = self._refit_result(dataset_id, m, constraints, deadline)
+        self.store.set_run_state(attempt_id, "running", "output_validation")
+        if time.monotonic() > deadline:
+            raise StoreError("run deadline exceeded")
+        # Publish result metadata and terminal state in one write — a
+        # partial publish can never report success.
+        self.store.set_run_state(attempt_id, "succeeded", "output_validation", result)

@@ -194,6 +194,26 @@ class ReviewStore:
         ).fetchone()
         return json.loads(row["payload"])["edits"] if row else {}
 
+    def constraints_at(self, dataset_id: str, revision: int) -> dict[str, Any]:
+        """Effective constraint set as of a specific revision — a run's
+        declared inputs, immune to later edits."""
+        if revision == 0:
+            return {}
+        row = self._conn.execute(
+            "SELECT payload FROM operations WHERE review=? AND result_revision=?",
+            (dataset_id, revision),
+        ).fetchone()
+        if row is None:
+            raise StoreError(f"no operation produced revision {revision}")
+        edits: dict[str, Any] = json.loads(row["payload"])["edits"]
+        return edits
+
+    def run_by_id(self, attempt_id: int) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM runs WHERE attempt_id=?", (attempt_id,)
+        ).fetchone()
+        return self._run_row(row) if row else None
+
     # -- conditional saves ---------------------------------------------------
 
     def save(
