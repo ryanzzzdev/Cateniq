@@ -20,8 +20,11 @@ from cateniq.geometry.profile import (
     A_MIN,
     COND_MAX,
     MAX_GAP_FRACTION,
+    MAX_SAG_FRACTION,
     MIN_COVERAGE,
     MIN_POINTS,
+    SPAN_MAX_M,
+    SPAN_MIN_M,
     Attachments,
     FitResult,
     FitStatus,
@@ -61,6 +64,15 @@ def arc_length(att: Attachments, u_v: float, a: float) -> float:
     return float(a * (np.sinh((att.u_b - u_v) / a) - np.sinh((att.u_a - u_v) / a)))
 
 
+def check_domain(att: Attachments) -> str | None:
+    """Return a reason string if the declared span is outside the domain."""
+    if att.u_b <= att.u_a:
+        return f"degenerate span: u_b {att.u_b} <= u_a {att.u_a}"
+    if not SPAN_MIN_M <= att.length <= SPAN_MAX_M:
+        return f"span {att.length:.2f} m outside [{SPAN_MIN_M}, {SPAN_MAX_M}] m"
+    return None
+
+
 def check_evidence(u: F64, att: Attachments) -> str | None:
     """Return a reason string if the observation evidence is insufficient."""
     n = int(u.shape[0])
@@ -75,6 +87,15 @@ def check_evidence(u: F64, att: Attachments) -> str | None:
     if max_gap > MAX_GAP_FRACTION:
         return f"observation gap too large: {max_gap:.3f} > {MAX_GAP_FRACTION}"
     return None
+
+
+def sag_fraction(params: tuple[float, float, float], att: Attachments) -> float:
+    """Deepest dip of the fitted curve below the endpoint chord, per span."""
+    u_v, v_v, a = params
+    u = np.linspace(att.u_a, att.u_b, 257)
+    chord = att.v_a + (att.v_b - att.v_a) * (u - att.u_a) / att.length
+    dip = np.max(chord - catenary_v(u, u_v, v_v, a))
+    return float(dip / att.length)
 
 
 def _condition(res: optimize.OptimizeResult) -> float | None:
@@ -93,6 +114,9 @@ def _residual_stats(
 
 def fit_free(u: F64, v: F64, att: Attachments) -> FitResult:
     """Unconstrained vertex-form least-squares fit to observations."""
+    reason = check_domain(att)
+    if reason:
+        return FitResult(FitStatus.UNSUPPORTED, None, None, None, None, reason)
     reason = check_evidence(u, att)
     if reason:
         return FitResult(
@@ -125,6 +149,16 @@ def fit_free(u: F64, v: F64, att: Attachments) -> FitResult:
         return FitResult(
             FitStatus.FAILED, params, rms, p95, cond, "ill-conditioned solution"
         )
+    sag = sag_fraction(params, att)
+    if sag > MAX_SAG_FRACTION:
+        return FitResult(
+            FitStatus.UNSUPPORTED,
+            params,
+            rms,
+            p95,
+            cond,
+            f"evidence implies sag/span {sag:.3f} > {MAX_SAG_FRACTION}",
+        )
     return FitResult(FitStatus.OK, params, rms, p95, cond, None)
 
 
@@ -132,8 +166,13 @@ def fit_constrained(u: F64, v: F64, att: Attachments) -> FitResult:
     """Fit with both endpoints fixed to the declared/corrected attachments.
 
     The endpoints determine u_v and v_v analytically for each trial a, leaving a
-    bounded scalar minimisation over a in [A_MIN, A_MAX].
+    bounded scalar minimisation over a in [A_MIN, A_MAX]. Constraints that can
+    only be satisfied outside the supported domain are reported INFEASIBLE,
+    never relaxed.
     """
+    reason = check_domain(att)
+    if reason:
+        return FitResult(FitStatus.UNSUPPORTED, None, None, None, None, reason)
     reason = check_evidence(u, att)
     if reason:
         return FitResult(
@@ -160,6 +199,16 @@ def fit_constrained(u: F64, v: F64, att: Attachments) -> FitResult:
             p95,
             None,
             f"constraints incompatible with supported a in [{A_MIN}, {A_MAX}]",
+        )
+    sag = sag_fraction(params, att)
+    if sag > MAX_SAG_FRACTION:
+        return FitResult(
+            FitStatus.INFEASIBLE,
+            params,
+            rms,
+            p95,
+            None,
+            f"constraints imply sag/span {sag:.3f} > {MAX_SAG_FRACTION}",
         )
     return FitResult(FitStatus.OK, params, rms, p95, None, None)
 

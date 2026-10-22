@@ -55,6 +55,9 @@ export interface Issue {
 export interface SpanDiagnostics {
   span_id: string;
   status: string;
+  /** "prediction" (free fit) or "corrected" (constrained refit). */
+  basis: string;
+  units: string;
   rms: number | null;
   p95: number | null;
   condition: number | null;
@@ -71,10 +74,25 @@ export interface Diagnostics {
 export interface FitResult {
   span_id: string;
   status: string;
+  basis: string;
+  units: string;
   rms: number | null;
   p95: number | null;
   reason: string | null;
   fit: { u_v: number; v_v: number; a: number; curve: Vec3[] } | null;
+  /** Echo of the constraints the refit ran against, plus measured provenance. */
+  constraints: {
+    attach_a: Vec3;
+    attach_b: Vec3;
+    off_plane_m: [number, number];
+    obs_lateral_rms_m: number;
+  } | null;
+}
+
+export interface RefitResult {
+  dataset_id: string;
+  spans: (SpanDiagnostics | FitResult)[];
+  issue_count: number;
 }
 
 export async function fetchHealth(): Promise<{ status: string; service: string }> {
@@ -113,5 +131,19 @@ export async function postFit(
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`fit failed: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+export async function postRefit(
+  datasetId: string,
+  edits: Record<string, { attach_a: Vec3; attach_b: Vec3 }>,
+): Promise<RefitResult> {
+  const res = await fetch(`/api/datasets/${datasetId}/refit`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ edits }),
+  });
+  if (!res.ok)
+    throw new Error(`refit failed: ${res.status} ${await res.text()}`);
   return res.json();
 }

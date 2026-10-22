@@ -19,6 +19,10 @@ class FitRequest(BaseModel):
     attach_b: list[float]
 
 
+class RefitRequest(BaseModel):
+    edits: dict[str, dict[str, list[float]]] = {}
+
+
 def create_app(fixtures_dir: Path | None = None) -> FastAPI:
     app = FastAPI(title="cateniq")
     root = fixtures_dir or Path(
@@ -54,6 +58,13 @@ def create_app(fixtures_dir: Path | None = None) -> FastAPI:
             return service.constrained_fit(
                 dataset_id, body.span_id, body.attach_a, body.attach_b
             )
+        except (ManifestError, FileNotFoundError, IndexError, ValueError) as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+    @app.post("/api/datasets/{dataset_id}/refit")
+    def corridor_refit(dataset_id: str, body: RefitRequest) -> dict[str, Any]:
+        try:
+            return service.refit(dataset_id, body.edits)
         except (ManifestError, FileNotFoundError, IndexError, ValueError) as exc:
             raise HTTPException(400, str(exc)) from exc
 

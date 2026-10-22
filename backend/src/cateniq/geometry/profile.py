@@ -64,6 +64,9 @@ class FitStatus(Enum):
     INSUFFICIENT_EVIDENCE = "insufficient_evidence"
     FAILED = "failed"
     INFEASIBLE = "infeasible"
+    # Inputs or evidence describe a span outside the supported domain —
+    # reported, never silently forced into the model.
+    UNSUPPORTED = "unsupported"
 
 
 @dataclass(frozen=True)

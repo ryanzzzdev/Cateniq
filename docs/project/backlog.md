@@ -12,8 +12,8 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 - ✅ [CAT-004 — Freeze the supported geometry and dataset profile](#cat-004)
 - ✅ [CAT-005 — Build reproducible corridor fixtures](#cat-005)
 - ✅ [CAT-006 — Prototype endpoint inspection and editing](#cat-006)
-- 📋 [CAT-007 — Implement fitting and computed diagnostics](#cat-007)
-- 📋 [CAT-008 — Complete the computed correction journey](#cat-008)
+- ✅ [CAT-007 — Implement fitting and computed diagnostics](#cat-007)
+- 🟢 [CAT-008 — Complete the computed correction journey](#cat-008)
 - 📋 [CAT-009 — Implement durable revisions and recoverable runs](#cat-009)
 - 📋 [CAT-010 — Integrate save, acceptance, conflicts and export](#cat-010)
 - 📋 [CAT-011 — Verify review races and failure recovery](#cat-011)
@@ -226,7 +226,7 @@ Prototype scope; no brush, pole editing, persistence or general CAD toolset. Loc
 - Area: geometry
 - Milestone: M2
 - Priority: Normal
-- Status: Backlog 📋
+- Status: Done ✅
 - Depends on: CAT-005, CAT-006
 - References: [Specification](features/datasets-and-geometry.md)
 
@@ -243,7 +243,7 @@ Produce genuine fitting and validation results from evidence and human constrain
 
 ### Completion evidence
 
-Production hardening not started; reference fitting and prototype diagnostics exist. See [review handoff](evidence/m1-exit-review.md#m2-handoff-notes-not-additional-m1-scope) for domain enforcement, provenance and independent-test follow-up.
+2026-10-23: UNSUPPORTED status + domain gates (span length, degenerate endpoints, sag/span>0.2), constrained-refit plane re-derived from corrected endpoints (no silent projection; off-plane offset reported as provenance), basis/units provenance on all results, corridor-level `POST /refit`. 13 new production-fit tests incl. independent cosh-form generator. See [evidence](evidence/fitting-diagnostics.md).
 
 ### Notes
 
@@ -257,7 +257,7 @@ Use the full rebuild as the baseline; incremental updates are excluded.
 - Area: workbench
 - Milestone: M2
 - Priority: Normal
-- Status: Backlog 📋
+- Status: Ready 🟢
 - Depends on: CAT-006, CAT-007
 - References: [Specification](features/workbench.md)
 

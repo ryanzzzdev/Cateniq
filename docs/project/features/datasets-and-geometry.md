@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: Numerical profile frozen (CAT-004, [evidence](../evidence/geometry-profile.md)); corridor fixtures frozen (CAT-005, [evidence](../evidence/corridor-fixtures.md)); production fitter not yet implemented.
+Status: Numerical profile frozen (CAT-004, [evidence](../evidence/geometry-profile.md)); corridor fixtures frozen (CAT-005, [evidence](../evidence/corridor-fixtures.md)); production fitting and diagnostics implemented (CAT-007, [evidence](../evidence/fitting-diagnostics.md)).
 
 ## Inputs and output boundary
 
@@ -21,13 +21,14 @@ The numerical profile is frozen in `backend/src/cateniq/geometry/profile.py` (th
 - **Plane coordinates:** span-local `(u, v)`; `u` horizontal along the span's vertical plane from attachment A toward B, `v` = world Z height in metres; a span occupies u ∈ [0, L] for L ∈ [10, 120] m.
 - **Fit model:** `v(u) = v_v + a(cosh((u−u_v)/a) − 1)`, evaluated as `2a·sinh²((u−u_v)/2a)` to avoid cosh−1 cancellation at large `a`. Parameters: vertex `(u_v, v_v)` and catenary constant `a = H/w` ∈ [3, 5000] m. Sag/span ≤ 0.20 — deliberately beyond the parabola regime, so the catenary is the required model.
 - **Free fit:** bounded least squares on vertical residuals; the vertex may lie up to two span lengths beyond the attachments so vertex-outside-span (monotonic) cases converge.
-- **Constrained fit:** endpoints fixed to declared/corrected attachments; `u_v`, `v_v` determined analytically, leaving a bounded scalar minimisation over `a`. Constraints are never relaxed; hitting the `a` bound returns INFEASIBLE.
+- **Constrained fit:** endpoints fixed to declared/corrected attachments; `u_v`, `v_v` determined analytically, leaving a bounded scalar minimisation over `a`. Constraints are never relaxed; hitting the `a` bound returns INFEASIBLE, as does a constraint that can only be satisfied with sag/span > 0.20. The corrected endpoints themselves define the refit plane — they are never projected back into the predicted plane; the off-plane offset versus the predicted plane is measured and reported as provenance.
+- **Domain gate:** span length outside [10, 120] m, degenerate endpoints (`u_b ≤ u_a`), or evidence implying sag/span > 0.20 returns UNSUPPORTED — the span is reported out of domain, never silently forced into the model.
 - **Evidence gates:** ≥30 points, observed extent ≥ 0.60·L, largest gap ≤ 0.25·L — otherwise INSUFFICIENT_EVIDENCE, distinct from a FAILED or OK fit.
 - **Fit quality:** vertical residuals in metres; RMS ≤ 0.15 m and p95 ≤ 0.30 m required to pass validation.
 - **Endpoint check:** |fitted v(u_attach) − v_attach| > 0.50 m raises an endpoint-mismatch diagnostic.
-- **Solver hygiene:** Jacobian condition > 1e10 reports FAILED/unstable; solver failure reports FAILED. Fit statuses: `ok`, `insufficient_evidence`, `failed`, `infeasible`.
+- **Solver hygiene:** Jacobian condition > 1e10 reports FAILED/unstable; solver failure reports FAILED. Fit statuses: `ok`, `insufficient_evidence`, `failed`, `infeasible`, `unsupported`.
 
-Diagnostics are computed from observations and predicted geometry: residual summaries, supporting-point coverage and endpoint/support consistency where the evidence allows. Each issue includes affected entity, measurement, configured threshold, input/run revision and an actionable explanation. Unsupported evidence is distinct from a failed fit and from a model that passes configured checks. Avoid uncalibrated probability/confidence labels.
+Diagnostics are computed from observations and predicted geometry: residual summaries, supporting-point coverage and endpoint/support consistency where the evidence allows. Each issue includes affected entity, measurement, configured threshold, input/run revision and an actionable explanation. Per-span results carry provenance — `basis` (`prediction` free fit vs `corrected` constrained refit), `units`, and echoed constraints with measured off-plane/lateral offsets — so original and corrected results remain distinguishable. `POST /api/datasets/{id}/refit` reruns the full corridor with the human constraint set (constrained where corrected, free elsewhere). Unsupported evidence is distinct from a failed fit and from a model that passes configured checks. Avoid uncalibrated probability/confidence labels.
 
 An intentionally displaced predicted endpoint may drive the demonstration, provided its origin is disclosed. Diagnostic generation cannot depend on a flag saying that the fixture contains that error. Residual reduction alone is not sufficient: a proposed correction must also satisfy applicable support and coverage checks.
 

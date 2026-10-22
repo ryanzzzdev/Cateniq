@@ -13,9 +13,10 @@ from cateniq import datasets
 from cateniq.datasets.manifest import (
     SCHEMA_VERSION,
     Manifest,
+    ManifestError,
     ObsArray,
 )
-from cateniq.datasets.plane import predicted_plane, to_plane
+from cateniq.datasets.plane import predicted_plane, span_plane, to_plane
 from cateniq.geometry import profile
 from cateniq.geometry.catenary import (
     catenary_v,
@@ -23,7 +24,6 @@ from cateniq.geometry.catenary import (
     fit_constrained,
     fit_free,
 )
-from cateniq.geometry.profile import Attachments
 
 
 def _columns(arr: ObsArray) -> dict[str, Any]:
@@ -121,12 +121,21 @@ class CorridorService:
         u, v = to_plane(xyz, origin, plane_u)
         res = fit_free(u, v, att)
         issues: list[dict[str, Any]] = []
+        dev: tuple[float, float] | None = None
         if res.status == profile.FitStatus.INSUFFICIENT_EVIDENCE:
             issues.append(
                 {
                     "kind": "insufficient_evidence",
                     "detail": res.reason,
                     "threshold": "frozen evidence gates",
+                }
+            )
+        elif res.status == profile.FitStatus.UNSUPPORTED:
+            issues.append(
+                {
+                    "kind": "unsupported_domain",
+                    "detail": res.reason,
+                    "threshold": "frozen domain bounds",
                 }
             )
         elif res.status != profile.FitStatus.OK:
@@ -165,10 +174,12 @@ class CorridorService:
         return {
             "span_id": span_id,
             "status": res.status.value,
+            "basis": "prediction",
+            "units": "m",
             "rms": res.rms,
             "p95": res.p95,
             "condition": res.condition,
-            "endpoint_deviations": list(dev) if res.params is not None else None,
+            "endpoint_deviations": list(dev) if dev is not None else None,
             "issues": issues,
         }
 
@@ -188,24 +199,55 @@ class CorridorService:
         attach_a: list[float],
         attach_b: list[float],
     ) -> dict[str, Any]:
-        """Refit a span with corrected attachments; validation preview only."""
+        """Refit a span with corrected attachments; validation preview only.
+
+        The corrected endpoints define the refit plane — they are never
+        projected back into the predicted plane. Provenance reports how far
+        each corrected endpoint lies off the predicted plane and the lateral
+        scatter of observations about the corrected plane.
+        """
         m = self._manifest(dataset_id)
         obs = datasets.load_observations(m)
         preds = datasets.load_predictions(m)
-        _att, origin, plane_u = predicted_plane(m, preds, span_id)
         arr = obs[span_id]
         xyz = np.stack([arr["x"], arr["y"], arr["z"]], axis=1)
+        try:
+            att, origin, plane_u = span_plane(m, span_id, attach_a, attach_b)
+        except ManifestError as exc:
+            return {
+                "span_id": span_id,
+                "status": profile.FitStatus.UNSUPPORTED.value,
+                "basis": "corrected",
+                "units": "m",
+                "rms": None,
+                "p95": None,
+                "reason": str(exc),
+                "fit": None,
+                "constraints": None,
+            }
         u, v = to_plane(xyz, origin, plane_u)
-        a = np.asarray(attach_a, dtype=np.float64)
-        b = np.asarray(attach_b, dtype=np.float64)
-        ua = float((a[:2] - origin[:2]) @ plane_u)
-        ub = float((b[:2] - origin[:2]) @ plane_u)
-        att = Attachments(ua, float(a[2]), ub, float(b[2]))
         res = fit_constrained(u, v, att)
+
+        # Provenance: off-plane offset vs the *predicted* plane, and the
+        # lateral observation scatter about the corrected plane.
+        _pa, pred_origin, pred_u = predicted_plane(m, preds, span_id)
+        pred_n = np.array([-pred_u[1], pred_u[0]])
+        a_w = np.asarray(attach_a, dtype=np.float64)
+        b_w = np.asarray(attach_b, dtype=np.float64)
+        off_a = float((a_w[:2] - pred_origin[:2]) @ pred_n)
+        off_b = float((b_w[:2] - pred_origin[:2]) @ pred_n)
+        lat = (xyz[:, :2] - origin[:2]) @ np.array([-plane_u[1], plane_u[0]])
+        constraints = {
+            "attach_a": [float(x) for x in a_w],
+            "attach_b": [float(x) for x in b_w],
+            "off_plane_m": [off_a, off_b],
+            "obs_lateral_rms_m": float(np.sqrt(np.mean(lat**2))),
+        }
+
         params_world = None
         if res.params is not None:
             # Sample the fitted curve back into world coordinates for display.
-            grid = np.linspace(ua, ub, 129)
+            grid = np.linspace(att.u_a, att.u_b, 129)
             vv = catenary_v(grid, *res.params)
             params_world = {
                 "u_v": res.params[0],
@@ -223,8 +265,40 @@ class CorridorService:
         return {
             "span_id": span_id,
             "status": res.status.value,
+            "basis": "corrected",
+            "units": "m",
             "rms": res.rms,
             "p95": res.p95,
             "reason": res.reason,
             "fit": params_world,
+            "constraints": constraints,
+        }
+
+    def refit(
+        self, dataset_id: str, edits: dict[str, dict[str, list[float]]]
+    ) -> dict[str, Any]:
+        """Full-corridor rerun: constrained where corrected, free elsewhere.
+
+        Every span is recomputed; the result carries per-span `basis` so
+        original and corrected results stay distinguishable.
+        """
+        m = self._manifest(dataset_id)
+        results: list[dict[str, Any]] = []
+        for s in m.spans:
+            edit = edits.get(s.span_id)
+            if edit is None:
+                results.append(self._fit_for(m, s.span_id))
+            else:
+                results.append(
+                    self.constrained_fit(
+                        dataset_id,
+                        s.span_id,
+                        edit["attach_a"],
+                        edit["attach_b"],
+                    )
+                )
+        return {
+            "dataset_id": dataset_id,
+            "spans": results,
+            "issue_count": sum(len(r.get("issues", [])) for r in results),
         }
