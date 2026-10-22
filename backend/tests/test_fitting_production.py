@@ -125,8 +125,8 @@ class TestIndependentEvidence:
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(create_app(FIXTURES))
+def client(tmp_path: Path) -> TestClient:
+    return TestClient(create_app(FIXTURES, tmp_path / "reviews.db"))
 
 
 class TestConstrainedFitService:

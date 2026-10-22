@@ -11,8 +11,8 @@ FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(create_app(FIXTURES))
+def client(tmp_path: Path) -> TestClient:
+    return TestClient(create_app(FIXTURES, tmp_path / "reviews.db"))
 
 
 def test_datasets_list(client: TestClient) -> None:

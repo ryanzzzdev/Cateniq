@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: Initial accepted design direction, not implemented. Exact API schemas and execution limits are refined before CAT-009/CAT-010.
+Status: Frozen implementation profile (CAT-009): REST/store schemas, operation-record lifetime, migration policy and bounded limits below are the contract. Initial accepted design direction text above remains the rationale.
 
 ## Revision model
 
@@ -47,3 +47,53 @@ A historical export is a consistent snapshot of its chosen revision. Importing/r
 - Export reconstruction matches the saved correction and validation identities.
 
 Tasks: [CAT-009](../backlog.md#cat-009), [CAT-010](../backlog.md#cat-010), [CAT-011](../backlog.md#cat-011).
+
+## Frozen implementation profile (CAT-009)
+
+### REST schemas
+
+All review routes are under `/api/datasets/{dataset_id}/review`. A review belongs to one dataset identity (manifest hash is recorded at creation; a changed manifest produces an explicit error, not a silent reset).
+
+- `GET /review` → `{dataset_id, manifest_hash, revision, accepted: {revision, run_id, at} | null, constraints: {span_id: {attach_a, attach_b}}}` — constraints are the effective saved constraint set (corrected spans only; absent span = predicted attachments).
+- `POST /review/operations` body `{operation_id, base_revision, edits: {span_id: {attach_a, attach_b}}}` → 200 `{revision, operation_id, replayed: bool}`; identical operation-ID + payload replays the stored outcome (`replayed: true`, no revision advance); same ID + different payload → 409; `base_revision` ≠ current → 409 `{detail, current_revision}`; invalid payload → 422. `edits` holds the full effective constraint set, not a delta.
+- `POST /review/runs` body `{operation_id}` → `{attempt_id, state}`; a repeated operation ID returns the existing attempt (no duplicate work).
+- `GET /review/runs/{attempt_id}` → `{attempt_id, operation_id, input_revision, algorithm, state, stage, retry_of, result | null, created_at, started_at, finished_at}`.
+- `GET /review/runs/current` → the latest `succeeded` run whose `input_revision` equals the current revision, or `null`. Runs against older revisions are retained as history and can never satisfy this.
+- `POST /review/accept` body `{revision, run_id}` → 200 `{accepted: {...}}`; 409 when the revision is not current, the run did not succeed for that revision, or any span carries issues.
+- `GET /review/export` → schema-versioned snapshot (below).
+- `POST /export/verify` body `{export}` → `{ok, dataset_id, revision, constraints}`; rejects wrong dataset identity, unknown span references, unsupported export schema, or a reconstructed constraint set that differs from the declared one.
+
+### Store schema (SQLite, schema_version 1)
+
+```sql
+meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);              -- schema_version=1
+reviews(dataset_id TEXT PRIMARY KEY, manifest_hash TEXT NOT NULL,
+        current_revision INTEGER NOT NULL, created_at TEXT NOT NULL);
+operations(review TEXT NOT NULL, seq INTEGER NOT NULL,
+           operation_id TEXT NOT NULL, base_revision INTEGER NOT NULL,
+           result_revision INTEGER NOT NULL, payload TEXT NOT NULL,
+           created_at TEXT NOT NULL,
+           PRIMARY KEY (review, seq), UNIQUE (review, operation_id));
+runs(attempt_id INTEGER PRIMARY KEY, review TEXT NOT NULL,
+     operation_id TEXT NOT NULL, input_revision INTEGER NOT NULL,
+     algorithm TEXT NOT NULL, state TEXT NOT NULL, stage TEXT NOT NULL,
+     result TEXT, retry_of INTEGER,
+     created_at TEXT NOT NULL, started_at TEXT, finished_at TEXT,
+     UNIQUE (review, operation_id));
+acceptance(review TEXT NOT NULL, revision INTEGER NOT NULL,
+           run_id INTEGER NOT NULL, accepted_at TEXT NOT NULL,
+           PRIMARY KEY (review, revision));
+```
+
+Saves execute `BEGIN IMMEDIATE` — base-revision check, operation-ID check, insert, revision advance in one transaction; two same-base writers serialise and exactly one succeeds. `runs.state` ∈ `queued|running|succeeded|failed|interrupted`; `stage` ∈ `input_validation|fit|output_validation`.
+
+### Operation-record lifetime and migration
+
+Operation records persist for the lifetime of the store file; there is no TTL and no replay against a newer base. Deleting the store file is the only reset and is explicit. Migration policy: `meta.schema_version` must equal 1; any other value is an explicit open error — no automatic migration exists in v1.
+
+### Bounded limits
+
+- One run executor slot (FIFO); queue depth 8 — a ninth admitted run is rejected 503 with a retry hint.
+- Run deadline 30 s, enforced cooperatively between per-span stages (a timed-out run is `failed`, never half-published).
+- Operation payload: ≤128 edited endpoints, `operation_id` 8–64 chars, coordinates finite numbers.
+- Algorithm identity `vertex-catenary-1.0` + frozen profile constants recorded on every attempt.

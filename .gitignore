@@ -19,3 +19,4 @@ playwright-report/
 *.swp
 *.tsbuildinfo
 .perf-fixtures/
+reviews.db*

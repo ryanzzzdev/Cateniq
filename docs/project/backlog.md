@@ -14,7 +14,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 - ✅ [CAT-006 — Prototype endpoint inspection and editing](#cat-006)
 - ✅ [CAT-007 — Implement fitting and computed diagnostics](#cat-007)
 - ✅ [CAT-008 — Complete the computed correction journey](#cat-008)
-- 📋 [CAT-009 — Implement durable revisions and recoverable runs](#cat-009)
+- 🚧 [CAT-009 — Implement durable revisions and recoverable runs](#cat-009)
 - 📋 [CAT-010 — Integrate save, acceptance, conflicts and export](#cat-010)
 - 📋 [CAT-011 — Verify review races and failure recovery](#cat-011)
 - 📋 [CAT-012 — Measure performance and resource behaviour](#cat-012)
@@ -296,7 +296,7 @@ Durable save/acceptance belongs to M3, not a misleading mock save button.
 - Area: review
 - Milestone: M3
 - Priority: Normal
-- Status: Backlog 📋
+- Status: In progress 🚧
 - Depends on: CAT-008
 - References: [Specification](features/review-lifecycle.md)
 
@@ -313,7 +313,7 @@ Persist correction history and bounded processing attempts without losing user c
 
 ### Completion evidence
 
-Not started; no implementation or verification evidence yet.
+Partial: frozen schemas/limits/migration in the lifecycle contract; SQLite store (reviews, append-only operations, runs, acceptance) with conditional saves + operation-ID idempotency; save/reopen/conflict/export routes; export verifier. 16 store+API tests incl. concurrent same-base saves on real SQLite. Run execution and acceptance routes remain (next checkpoint).
 
 ### Notes
 

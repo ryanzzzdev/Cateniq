@@ -1,9 +1,11 @@
-"""Corridor serving layer: dataset payloads and computed diagnostics.
+"""Corridor serving layer: dataset payloads, computed diagnostics and the
+durable review lifecycle (CAT-009).
 
 Reads only fitter-facing assets (observations, predictions, context). The
 evaluation/reference assets are never touched here.
 """
 
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +26,12 @@ from cateniq.geometry.catenary import (
     fit_constrained,
     fit_free,
 )
+from cateniq.store import (
+    ALGORITHM,
+    MAX_EDITED_ENDPOINTS,
+    ReviewStore,
+    ValidationError,
+)
 
 
 def _columns(arr: ObsArray) -> dict[str, Any]:
@@ -39,9 +47,12 @@ def _columns(arr: ObsArray) -> dict[str, Any]:
 class CorridorService:
     """Serves datasets and diagnostics from a fixtures directory."""
 
-    def __init__(self, fixtures_dir: Path) -> None:
+    def __init__(self, fixtures_dir: Path, db_path: Path | None = None) -> None:
         self.fixtures_dir = fixtures_dir
         self._manifests: dict[str, Manifest] = {}
+        self.store = ReviewStore(
+            db_path if db_path is not None else fixtures_dir.parent / "reviews.db"
+        )
 
     def _manifest(self, dataset_id: str) -> Manifest:
         if dataset_id not in self._manifests:
@@ -357,4 +368,127 @@ class CorridorService:
             "dataset_id": dataset_id,
             "spans": results,
             "issue_count": sum(len(r.get("issues", [])) for r in results),
+        }
+
+    # -- durable review lifecycle (CAT-009) -----------------------------------
+
+    def _manifest_hash(self, dataset_id: str) -> str:
+        self._manifest(dataset_id)  # validates the manifest first
+        h = hashlib.sha256()
+        h.update((self.fixtures_dir / dataset_id / "manifest.json").read_bytes())
+        return h.hexdigest()
+
+    def _validate_edits(
+        self, m: Manifest, edits: dict[str, Any]
+    ) -> dict[str, dict[str, list[float]]]:
+        """Operation payload checks: known spans, finite 3-vectors, bounded
+        count. The full effective constraint set is stored, not a delta."""
+        if not isinstance(edits, dict):
+            raise ValidationError("edits must be a span-keyed mapping")
+        span_ids = {s.span_id for s in m.spans}
+        out: dict[str, dict[str, list[float]]] = {}
+        count = 0
+        for sid, e in edits.items():
+            if sid not in span_ids:
+                raise ValidationError(f"unknown span {sid}")
+            if set(e) != {"attach_a", "attach_b"}:
+                raise ValidationError(f"{sid}: edits need attach_a/attach_b")
+            row: dict[str, list[float]] = {}
+            for k in ("attach_a", "attach_b"):
+                v = e[k]
+                if (
+                    not isinstance(v, list)
+                    or len(v) != 3
+                    or not all(isinstance(x, int | float) and np.isfinite(x) for x in v)
+                ):
+                    raise ValidationError(f"{sid}: {k} must be a finite 3-vector")
+                row[k] = [float(x) for x in v]
+            out[sid] = row
+            count += 2
+        if count > MAX_EDITED_ENDPOINTS:
+            raise ValidationError(
+                f"operation edits {count} endpoints > {MAX_EDITED_ENDPOINTS}"
+            )
+        return out
+
+    def review_state(self, dataset_id: str) -> dict[str, Any]:
+        return self.store.review(dataset_id, self._manifest_hash(dataset_id))
+
+    def save_operation(
+        self,
+        dataset_id: str,
+        operation_id: str,
+        base_revision: int,
+        edits: dict[str, Any],
+    ) -> dict[str, Any]:
+        m = self._manifest(dataset_id)
+        self.review_state(dataset_id)  # ensures the review exists
+        return self.store.save(
+            dataset_id,
+            operation_id,
+            base_revision,
+            self._validate_edits(m, edits),
+        )
+
+    def export_review(self, dataset_id: str) -> dict[str, Any]:
+        """Schema-versioned snapshot of the review's durable state."""
+        m = self._manifest(dataset_id)
+        state = self.review_state(dataset_id)
+        return {
+            "schema_version": 1,
+            "dataset": {
+                "dataset_id": m.dataset_id,
+                "manifest_hash": state["manifest_hash"],
+                "coordinate_convention": m.coordinate_convention,
+                "generator": m.generator,
+            },
+            "algorithm": {
+                "name": ALGORITHM,
+                "profile": {
+                    "rms_max_m": profile.RMS_MAX_M,
+                    "residual_p95_max_m": profile.RESIDUAL_P95_MAX_M,
+                    "endpoint_tolerance_m": profile.ENDPOINT_TOLERANCE_M,
+                    "lateral_tolerance_m": profile.LATERAL_TOLERANCE_M,
+                },
+            },
+            "revision": state["revision"],
+            "operations": self.store.history(dataset_id),
+            "constraints": state["constraints"],
+            "accepted": state["accepted"],
+            "validation": self.store.current_validation(dataset_id),
+        }
+
+    def verify_export(self, export: dict[str, Any]) -> dict[str, Any]:
+        """Reconstruct the effective constraint set from the exported
+        operation history and check every referenced identity."""
+        if export.get("schema_version") != 1:
+            raise ValidationError("unsupported export schema_version")
+        ds = export.get("dataset", {})
+        dataset_id = ds.get("dataset_id")
+        m = self._manifest(dataset_id)  # unknown dataset -> ManifestError
+        if ds.get("manifest_hash") != self._manifest_hash(dataset_id):
+            raise ValidationError("export dataset identity does not match")
+        span_ids = {s.span_id for s in m.spans}
+        ops = export.get("operations", [])
+        prev_result = 0
+        reconstructed: dict[str, Any] = {}
+        for op in ops:
+            if op["base_revision"] != prev_result:
+                raise ValidationError(f"operation chain broken at seq {op['seq']}")
+            for sid in op["payload"]["edits"]:
+                if sid not in span_ids:
+                    raise ValidationError(f"unknown span reference {sid}")
+            reconstructed = op["payload"]["edits"]
+            prev_result = op["result_revision"]
+        if reconstructed != export.get("constraints", {}):
+            raise ValidationError(
+                "reconstructed constraints differ from declared export"
+            )
+        if prev_result != export.get("revision"):
+            raise ValidationError("operation chain does not reach declared revision")
+        return {
+            "ok": True,
+            "dataset_id": dataset_id,
+            "revision": export["revision"],
+            "constraints": reconstructed,
         }
