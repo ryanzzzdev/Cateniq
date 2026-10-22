@@ -85,3 +85,5 @@ Exit criteria:
 - A short recording and written explanation connect demonstrated engineering to Neara and the wider energy portfolio without claiming complete role coverage.
 
 Hosted CI status must be reported separately from local results; no claim of a green hosted run without observing one. Public deployment, real LiDAR validation and additional tools remain future candidates, not hidden exit requirements.
+
+Independent review at `829b736` reopened M3/M4 for remaining undo/save correctness, verification/demo isolation and final evidence coverage — all findings resolved with regression coverage; see [M4 review](evidence/m4-exit-review.md).

@@ -1,8 +1,8 @@
 # Evidence — durable review lifecycle and fault verification (CAT-009 / CAT-010 / CAT-011)
 
-Date: 2026-10-25
+Date: 2026-10-23
 Environment: Linux kernel 7.0, Intel Core Ultra 5 225H (14 threads), 30 GB RAM; Python 3.14.4/FastAPI, SQLite (WAL); Node 22, Chromium via Playwright (headless).
-Procedure: `cd backend && uv run pytest` (83 checks), `cd apps/web && npx playwright test` (19 browser checks incl. `e2e/review.spec.ts`), `npx vitest run` (30). Fault tests run on real SQLite files under `tmp_path`, a real worker-thread executor (disabled only where a test drives `execute_next` deterministically), and a real FastAPI `TestClient`.
+Procedure: `cd backend && uv run pytest` (83 checks), `cd apps/web && npx playwright test` (20 browser checks incl. `e2e/review.spec.ts`), `npx vitest run` (32). Fault tests run on real SQLite files under `tmp_path`, a real worker-thread executor (disabled only where a test drives `execute_next` deterministically), and a real FastAPI `TestClient`.
 
 ## Frozen limits (contract: `features/review-lifecycle.md`)
 
@@ -34,6 +34,7 @@ Procedure: `cd backend && uv run pytest` (83 checks), `cd apps/web && npx playwr
 | Acceptance racing a later save | `test_acceptance_round_trip_and_race` | Accepting the stale revision/run is a 409; the new revision is unaccepted |
 | Dataset-load response race | `loadEpoch` in `apps/web/src/App.tsx`; `review.spec.ts` reload flow | A superseded `openDataset` response is discarded — `datasetId` and loaded data can no longer mismatch |
 | Export replayed against the verifier | `test_export_reconstructs_and_rejects_mismatch`, `review.spec.ts` export test | Operation chain reconstructs the declared constraints; tampered constraints, broken chains, unknown spans and foreign dataset identities are rejected 422 |
+| Undo while a save is in flight | `review.spec.ts` undo-during-save test, `store.test.ts` | `recordSaved` rebases local history onto the new baseline: the user's reverted geometry survives as an explicit unsaved edit — the undo is never silently reversed, and remains itself undoable |
 | Export under a concurrent saver | `test_export_is_coherent_under_concurrent_saves` | `store.snapshot()` reads revision, constraints, history, acceptance and validation under one lock; every export verifies against its declared revision |
 | Real process kill mid-run | `test_process_kill_marks_run_interrupted_and_retry_recovers` | A child process marking a run `running` is SIGKILLed; a fresh process marks it `interrupted` and a linked retry recomputes and `succeeded`s — OS-level evidence, not simulated |
 | API responsiveness during a slow run | `test_api_stays_responsive_during_a_slow_run` | A 100 ms/span fit occupying the executor slot leaves `review_state` responding in <0.5 s; the run still completes through the worker |

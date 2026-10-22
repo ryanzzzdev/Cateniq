@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: all matrix scenarios have verified evidence; see the evidence index below. Independent reviews: [M1](../evidence/m1-exit-review.md), [M2](../evidence/m2-exit-review.md), [M3](../evidence/m3-exit-review.md). Latest verified revision `9b02519`.
+Status: all matrix scenarios have verified evidence; see the evidence index below. Independent reviews: [M1](../evidence/m1-exit-review.md), [M2](../evidence/m2-exit-review.md), [M3](../evidence/m3-exit-review.md), [M4](../evidence/m4-exit-review.md). The M4 review's findings (demo/verification-suite isolation, undo-during-save, incomplete performance evidence) are resolved — see its resolution section.
 
 ## Evidence standard
 
@@ -33,10 +33,10 @@ Verification commands are defined and exercised during CAT-003 and subsequent im
 | ID | Passing evidence |
 | --- | --- |
 | D1 | `backend/tests/test_datasets.py` — hash/unit/schema rejections; reference truth stays separate from fitter inputs |
-| G1 | `backend/tests/test_geometry.py`, `backend/tests/test_fitting.py` — frozen-tolerance checks incl. unequal heights; M1 evidence doc |
-| G2 | `backend/tests/test_fitting.py`, adverse fixtures — explicit `unsupported`/`failed`/issue outcomes, never forced green; e2e lateral/quality-gate regressions |
+| G1 | `backend/tests/test_geometry_profile.py`, `backend/tests/test_fitting_production.py` — frozen-tolerance checks incl. unequal heights; M1 evidence doc |
+| G2 | `backend/tests/test_fitting_production.py`, adverse fixtures — explicit `unsupported`/`failed`/issue outcomes, never forced green; e2e lateral/quality-gate regressions |
 | U1 | `apps/web/e2e/workbench.spec.ts`, `apps/web/src/store.test.ts` — select, numeric/constrained edit, cancel, undo/redo, coordinate accuracy |
-| U2 | `apps/web/e2e/review.spec.ts` (delayed/aborted saves), `store.test.ts` — drafts retained, stale results never shown current, retry recovers |
+| U2 | `apps/web/e2e/review.spec.ts` (delayed/aborted saves, undo during pending save), `store.test.ts` — drafts retained, stale results never shown current, retry recovers |
 | R1 | `backend/tests/test_store.py` concurrent-save/op-ID tests; `e2e/review.spec.ts` two-session 409 |
 | R2 | `backend/tests/test_store.py` — real SIGKILL recovery (`TestRealProcessRecovery`), linked retry, API responsive under a slow run |
 | R3 | `backend/tests/test_store.py` acceptance-race tests; `e2e/review.spec.ts` dirty-state acceptance gating |

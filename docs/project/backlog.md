@@ -22,7 +22,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 ## Delivery notes
 
-M2 review fixes verified; M1 and M2 remain Complete. M3 findings from the independent exit review resolved and verified (see [M3 exit review](evidence/m3-exit-review.md)) — M3 Complete. M4 Complete: performance budgets met (`evidence/m4-performance.md`), demo recorded (`docs/demo/`, `project/demo.md`), clean-environment setup verified, evidence index maps the full acceptance matrix (`features/verification.md`). Next unused ID: CAT-014.
+M1/M2 remain Complete. M4 review findings resolved and verified (see [M4 exit review](evidence/m4-exit-review.md)): undo during a pending save is preserved via history rebase, the demo spec is isolated from the verification suite, and performance evidence now cites the contract budgets with recalculation/repeated-edit measurements. M3/M4 Complete. Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -350,6 +350,8 @@ Workbench review flow implemented (`apps/web/src/api.ts`, `store.ts`, `panels.ts
 
 Independent review at `296647d` reopened this for late-save edit loss, disabled save retry and dirty-state acceptance — resolved: `recordSaved` acks only the submitted edit prefix with dataset/load-epoch correlation; `saveFailed` clears the flag and `pendingSave` replays the operation ID; `canAccept` requires a clean workbench and the badge scopes itself when dirty. Store + e2e regressions cover each.
 
+Independent review at `829b736`: reopened because undo during pending save still loses newer user intent — resolved: `recordSaved` now rebases local history onto the acknowledged baseline (drops acked/redundant commands, re-expresses untouched-by-baseline endpoints as explicit unsaved edits), covering undo-to-empty and branch-after-undo; store + e2e regressions added.
+
 ### Notes
 
 No automatic merge and no claims that corrections are unquestioned ground truth.
@@ -383,6 +385,8 @@ Fault/race matrix recorded in `docs/project/evidence/m3-review-lifecycle.md`: co
 
 Independent review at `296647d` reopened this for race regressions and actual process-recovery/deadline evidence — resolved: coherent-snapshot regression under a concurrent saver, real SIGKILL recovery test, executor-responsiveness test, and an explicit cooperative-deadline scope statement. See [M3 exit review](evidence/m3-exit-review.md).
 
+Independent review at `829b736`: reopened because undo/save regression verification remains required — resolved: undo-during-save regression now in the browser suite and store tests, and the m3 fault matrix records the mechanism.
+
 ### Notes
 
 Refine fault harness when implementation exists; process crash does not prove power-cut durability.
@@ -412,6 +416,8 @@ Validate the workbench against the budgets established at M1.
 ### Completion evidence
 
 `docs/project/evidence/m4-performance.md` — post-M3 measurements at `9b02519` on the named 100k-point workload (production durable-review UI): load 1682 ms (≤4000), select 416 ms (≤500), edit 615 ms (≤800), commit 423 ms (≤800), frames p50 33.3 / p95 50 ms (≤50/≤100), heap flat 21 MB across dataset replacement, renderer objects return to baseline. Responsiveness during fitting: service-level slow-run test (API <0.5 s under a 100 ms/span fit) plus UI staleness suite. All budgets met; no revision needed.
+
+Independent review at `829b736`: reopened because recalculation and repeated-edit resource measurements plus budget provenance were incomplete — resolved: the perf spec now measures `POST /fit` recalculation latency and repeated commit/undo/redo cycles; `evidence/m4-performance.md` cites the `features/workbench.md` budgets and only what the harness measures; evidence-index filenames corrected.
 
 ### Notes
 
@@ -443,6 +449,8 @@ Deliver reproducible local operation, a concise demo and final evidence review.
 ### Completion evidence
 
 Recorded walkthroughs: `docs/demo/01-correction-journey.webm` + `02-accept-and-conflict.webm` (Playwright video of `apps/web/e2e/demo.spec.ts` against the production build, real API and isolated `.e2e-demo.db`); narrative in `docs/project/demo.md`. README verified in a clean disposable worktree: `uv sync --locked` → 83 pytest, `npm ci` → typecheck + 30 vitest + build, `npx playwright test` → 19 browser checks; reset boundary (`CATENIQ_DB_PATH`, `rm backend/reviews.db*`) exercised. Evidence index in `features/verification.md` maps every acceptance-matrix scenario to passing evidence. Hosted CI workflow exists but no hosted run observed — reported separately per contract.
+
+Independent review at `829b736`: reopened because the documented default browser command included demos and failed, and the evidence index had nonexistent references — resolved: `demo.spec.ts` is excluded from the verification config (it runs only under `playwright.demo.config.ts` with its own database), the default `npm run test:e2e` passes 20 checks again, and evidence-index references are corrected.
 
 ### Notes
 

@@ -2,7 +2,10 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  testIgnore: "perf.spec.ts",
+  // perf runs under playwright.perf.config.ts; demo recordings under
+  // playwright.demo.config.ts with their own database — neither may
+  // mutate the shared verification database this suite uses.
+  testIgnore: ["perf.spec.ts", "demo.spec.ts"],
   use: { baseURL: "http://localhost:4173" },
   webServer: [
     {

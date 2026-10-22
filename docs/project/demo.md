@@ -1,6 +1,6 @@
 # Demonstration walkthrough
 
-Date: 2026-10-25. Status: recorded and verified — the sequences below are the same steps the e2e demo spec executes against the real application; the recordings are its Playwright video output, not staged captures.
+Date: 2026-10-23. Status: recorded and verified — the sequences below are the same steps the e2e demo spec executes against the real application; the recordings are its Playwright video output, not staged captures.
 
 ## Recordings
 

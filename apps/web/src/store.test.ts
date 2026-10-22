@@ -223,6 +223,48 @@ describe("workbench store", () => {
     expect(s.attachFor("S2", "b")).toEqual([95, 0, 11]);
   });
 
+  it("an undo during a pending save survives as an explicit unsaved edit", () => {
+    const s = readyStore();
+    s.beginDraft("S2", "b");
+    s.moveDraft([95, 0, 12]);
+    s.commitDraft();
+    const submitted = s.get().past;
+    s.undo(); // user reverts to the prediction while the save is in flight
+    expect(s.attachFor("S2", "b")).toEqual([95, 0, 10.5]);
+    s.recordSaved(
+      1,
+      { S2: { attach_a: [50, 0, 12], attach_b: [95, 0, 12] } },
+      null,
+      submitted,
+    );
+    // The undo intent is preserved: the saved baseline is z=12 but the
+    // user sees their reverted geometry as an unsaved local edit.
+    expect(s.get().past).toHaveLength(1);
+    expect(s.attachFor("S2", "b")).toEqual([95, 0, 10.5]);
+    expect(s.get().past[0].to).toEqual([95, 0, 10.5]);
+    // It remains undoable — removing it reveals the saved baseline.
+    s.undo();
+    expect(s.attachFor("S2", "b")).toEqual([95, 0, 12]);
+  });
+
+  it("undo then redo during a save acks cleanly — no ghost edit", () => {
+    const s = readyStore();
+    s.beginDraft("S2", "b");
+    s.moveDraft([95, 0, 12]);
+    s.commitDraft();
+    const submitted = s.get().past;
+    s.undo();
+    s.redo(); // restores the submitted command object itself
+    s.recordSaved(
+      1,
+      { S2: { attach_a: [50, 0, 12], attach_b: [95, 0, 12] } },
+      null,
+      submitted,
+    );
+    expect(s.get().past).toHaveLength(0);
+    expect(s.attachFor("S2", "b")).toEqual([95, 0, 12]);
+  });
+
   it("saveFailed clears pending but keeps the operation for retry", () => {
     const s = readyStore();
     const op = {

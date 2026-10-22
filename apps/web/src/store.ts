@@ -380,31 +380,54 @@ export class WorkbenchStore {
 
   /** Authoritative review state applied after a save: the saved
    *  constraint set becomes the durable baseline and the acknowledged
-   *  edits leave `past`. Edits committed while the save was in flight —
-   *  or after an undo changed the history prefix — are preserved as
-   *  still-unsaved local edits on top of the new baseline. */
+   *  edits leave `past`. Local intent that diverged while the save was
+   *  in flight — mid-flight commits, undo-to-empty, branch-after-undo —
+   *  is rebased onto the new baseline as still-unsaved edits rather than
+   *  silently discarded. */
   recordSaved(
     revision: number,
     savedEdits: SavedEdits,
     accepted: Accepted | null,
     acked: EditCommand[],
   ) {
-    const prefixAcked =
-      acked.length <= this.state.past.length &&
-      acked.every((c, i) => this.state.past[i] === c);
-    const past = prefixAcked ? this.state.past.slice(acked.length) : this.state.past;
+    const pre = this.state;
+    // The user's current effective value at every history-touched
+    // endpoint, captured before the new baseline lands.
+    const touched = new Map<string, Vec3>();
+    for (const c of [...pre.past, ...pre.future]) {
+      const k = `${c.spanId}|${c.which}`;
+      if (!touched.has(k)) touched.set(k, attachForIn(pre, c.spanId, c.which));
+    }
     const next: WorkbenchState = {
-      ...this.state,
+      ...pre,
       savePending: false,
       conflict: null,
       pendingSave: null,
       revision,
       savedEdits,
       accepted,
-      past,
+      past: [],
       future: [],
-      editVersion: this.state.editVersion + 1,
+      editVersion: pre.editVersion + 1,
     };
+    // Rebase: keep only commands whose effect still differs from what
+    // lies beneath them (acknowledged and redundant commands drop out),
+    // then re-express any touched endpoint the baseline doesn't already
+    // reproduce — an undone save survives as an explicit local edit.
+    const preserved: EditCommand[] = [];
+    for (const c of pre.past) {
+      if (acked.includes(c)) continue;
+      const under = attachForIn({ ...next, past: preserved }, c.spanId, c.which);
+      if (displacement(c.to, under) >= 1e-9) preserved.push(c);
+    }
+    for (const [k, val] of touched) {
+      const [spanId, which] = k.split("|") as [string, Endpoint];
+      const under = attachForIn({ ...next, past: preserved }, spanId, which);
+      if (displacement(val, under) >= 1e-9) {
+        preserved.push({ spanId, which, from: under, to: val, snappedTo: null });
+      }
+    }
+    next.past = preserved;
     next.lastFit = this.refreshFitStaleness(next);
     this.set(next);
   }

@@ -251,8 +251,9 @@ export default function App() {
       s.pendingSave && editsEqual(s.pendingSave.edits, edits)
         ? s.pendingSave.operation_id
         : crypto.randomUUID();
-    // The edits the payload acknowledges — the store drops exactly this
-    // prefix of `past` on success, preserving edits made mid-flight.
+    // The edits the payload acknowledges — on success the store rebases
+    // `past` onto the new baseline, preserving mid-flight edits and
+    // undos as still-unsaved local work.
     const acked = s.past;
     store.beginSave({ operation_id, edits });
     try {

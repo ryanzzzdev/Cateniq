@@ -59,6 +59,31 @@ test("100k-point workload: load, select, edit latency, resources", async ({
   await expect(page.getByTestId("unsaved-note")).toContainText("1 local edit");
   const commitMs = performance.now() - commitT0;
 
+  // Recalculation latency: constrained refit round-trip against the real
+  // API (POST /fit), measured as click-to-result on the edited span.
+  const fitT0 = performance.now();
+  await page.getByRole("button", { name: "Validate correction" }).click();
+  await expect(page.getByTestId("fit-result")).toBeVisible({
+    timeout: 30000,
+  });
+  const fitMs = performance.now() - fitT0;
+
+  // Repeated edit/undo cycles: resource counts and heap must stay flat —
+  // no accumulation of stale objects across local history churn.
+  for (let i = 0; i < 5; i++) {
+    await zInput.click();
+    await zInput.fill((12.4 + (i % 2 ? 0.1 : -0.1)).toFixed(2));
+    await page.getByRole("button", { name: "Commit" }).click();
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+  }
+  const heapAfterEdits = await page.evaluate(
+    () => (performance as any).memory?.usedJSHeapSize ?? 0,
+  );
+  const resAfterEdits = await page.evaluate(() =>
+    (window as any).__cateniq_perf.scene.resourceStats(),
+  );
+
   // Dataset switch away and back — resource counts must return to baseline
   // (clearData disposes geometry/materials; no accumulation). The switch is
   // gated by the unsaved-edits confirm dialog — accept it.
@@ -121,14 +146,17 @@ test("100k-point workload: load, select, edit latency, resources", async ({
       selectMs,
       editMs,
       commitMs,
+      fitMs,
       frames,
       heapMB0: Math.round(heap0 / 1048576),
       heapMB1: Math.round(heap1 / 1048576),
       heapMB2: Math.round(heap2 / 1048576),
+      heapAfterEditsMB: Math.round(heapAfterEdits / 1048576),
       children,
       res0,
       resA,
       res1,
+      resAfterEdits,
     })}`,
   );
   expect(pointCount).toBeGreaterThan(95000);
