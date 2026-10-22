@@ -17,7 +17,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 - ✅ [CAT-009 — Implement durable revisions and recoverable runs](#cat-009)
 - ✅ [CAT-010 — Integrate save, acceptance, conflicts and export](#cat-010)
 - ✅ [CAT-011 — Verify review races and failure recovery](#cat-011)
-- 📋 [CAT-012 — Measure performance and resource behaviour](#cat-012)
+- ✅ [CAT-012 — Measure performance and resource behaviour](#cat-012)
 - 📋 [CAT-013 — Package and review the portfolio demonstration](#cat-013)
 
 ## Delivery notes
@@ -395,7 +395,7 @@ Refine fault harness when implementation exists; process crash does not prove po
 - Area: verification
 - Milestone: M4
 - Priority: Normal
-- Status: Backlog 📋
+- Status: Done ✅
 - Depends on: CAT-011
 - References: [Specification](features/verification.md)
 
@@ -411,7 +411,7 @@ Validate the workbench against the budgets established at M1.
 
 ### Completion evidence
 
-Not started; no implementation or verification evidence yet.
+`docs/project/evidence/m4-performance.md` — post-M3 measurements at `9b02519` on the named 100k-point workload (production durable-review UI): load 1682 ms (≤4000), select 416 ms (≤500), edit 615 ms (≤800), commit 423 ms (≤800), frames p50 33.3 / p95 50 ms (≤50/≤100), heap flat 21 MB across dataset replacement, renderer objects return to baseline. Responsiveness during fitting: service-level slow-run test (API <0.5 s under a 100 ms/span fit) plus UI staleness suite. All budgets met; no revision needed.
 
 ### Notes
 
