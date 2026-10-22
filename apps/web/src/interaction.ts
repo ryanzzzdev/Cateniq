@@ -116,6 +116,8 @@ export interface RawHit {
   visible: boolean;
   spanId?: string;
   which?: "a" | "b";
+  /** Identifier of the intercepted object (e.g. "pole:P3") — diagnostic only. */
+  pickId?: string;
 }
 
 export function classifyHits(hits: RawHit[]): PickKind {

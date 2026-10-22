@@ -3,7 +3,7 @@
 Date: 2026-10-22
 Environment: Linux kernel 7.0, Intel Core Ultra 5 225H (14 threads), 30 GB RAM; Python 3.14.4/FastAPI 0.143.1 backend; Node 22.23.1, Vite 8.3.4 preview, Three.js 0.186.1; Chromium via Playwright 1.64.1 (headless).
 Workload: `corridor-perf` — 9 spans × 11,000 conductor points + context = 100,200 points rendered, generated on demand by `scripts/generate_perf_corridor.py` (not committed).
-Procedure: `cd apps/web && npx playwright test` (5 journey checks) and `npx playwright test -c playwright.perf.config.ts` (measurement run against the 100k workload). Unit coverage: 17 vitest checks for the store and interaction math; backend: 39 pytest checks including service-level HTTP tests.
+Procedure: `cd apps/web && npx playwright test` (6 journey checks) and `npx playwright test -c playwright.perf.config.ts` (measurement run against the 100k workload). Unit coverage: 22 vitest checks including `classifyHits` pick ordering; backend: 39 pytest checks including service-level HTTP tests.
 
 Independent review: [M1 exit review](m1-exit-review.md) reproduces timing and existing tests, reopened ambiguous/occluded-view verification and resource observations — both addressed below (updated 2026-10-23).
 
@@ -36,8 +36,8 @@ Measured latencies include Playwright action overhead, so they are conservative 
 - Ambiguous/no-hit: clicking empty sky selects nothing and moves nothing; a subsequent select shows the prediction unchanged.
 - Drag path: pointer drag on the b-handle to the P3:high candidate's screen position snaps and commits 10.5→12.0 as one command.
 - Ambiguous view: verified 2026-10-23. S1's b-handle and S2's a-handle share world point (50, 0, 12); clicking that pixel while S2 is selected drafts endpoint **a** and while S1 is selected drafts endpoint **b** — the nearest *visible* handle wins; the invisible co-located handle never steals the pick (e2e `co-located handles`). Cancelling before release commits nothing.
-- Occluded view: verified 2026-10-23. A bird's-eye camera above pole P3 puts the pole post (top 13.5 m) between the camera and the b-handle (10.5 m): clicking the handle's position hits the post and produces no draft and no move (e2e `occluded handle cannot be dragged through a pole`). The same handle drags normally once the camera returns. Pick ordering is now classified by the unit-tested `classifyHits` (nearest visible hit; blockers shadow what they occlude; no-hit moves nothing).
-- Bugs found and fixed by these checks: pole posts rendered horizontally (cylinder axis is +Y, not +Z — now rotated upright); pole posts/context points were absent from the pick set so occluders did not shadow picks (now blockers); `clearData()` removed objects without disposing geometries/materials and `dispose()` left the ResizeObserver attached (both fixed).
+- Occluded view: verified 2026-10-23 (discriminating regression). From a bird's-eye camera above P3 the ray through the b-handle pixel is intercepted by a stack of nearer objects. `pickAtScreen` identifies each layer and the test peels them: context cloud (z≈13.1) → P3 post cap (z=12) → S3 geometry (endpoint at the same pole) → S2's own conductor points (z≈12.0) → handle (z=10.95). Each removal changes the pick outcome (none → none → span S3 → span S2 → handle S2-b), so the scenario demonstrably fails without the blocker layers. With blockers intact a held pointer-down starts no draft and clears the selection; unblocked, the same pixel begins a real drag (cancelled, nothing committed). Endpoint coordinates verified unchanged (10.50) throughout.
+- Bugs found and fixed by these checks: pole posts rendered horizontally (cylinder axis is +Y, not +Z — now rotated upright); pole posts/context points were absent from the pick set so occluders did not shadow picks (now blockers); `clearData()` removed objects without disposing geometries/materials and `dispose()` left the ResizeObserver attached (both fixed); the first occlusion regression was non-discriminating and is now a layer-identified peel.
 
 ## Resource observations (100,200-point workload, same environment)
 
@@ -46,8 +46,10 @@ Measured across two dataset round-trips (perf → corridor-a → perf → corrid
 - JS heap (usedJSHeapSize): flat at 20 MB before and after both round-trips.
 - Scene object count: 91 objects after reload — identical rebuild, no stale-object accumulation.
 - Draw calls/triangles at a fixed camera: 28 / 3,296 before and after reload — render load returns to baseline.
-- `renderer.info.memory.geometries` varied (40→47): it counts geometry buffers ever uploaded, which depends on which objects entered the frustum during the session — not live-object count. Live objects (91) and heap confirm no accumulation. Repeated-load acceptance remains CAT-012.
+- `renderer.info.memory.geometries` varied (40→47): it counts registered renderer geometries and decrements on disposal (verified in the installed Three.js WebGLGeometries source); render history affects which geometries are registered. The difference is inconclusive without matched rendering history. Final scene count and rounded heap readings do not establish absence of leaks. Repeated-load acceptance remains CAT-012.
 
 ## Limits declared
 
 Prototype scope: no persistence, revisions, cross-span edits or pole editing; edits are client-side drafts. Frame times were measured in headless Chromium on the named machine — real-GPU frame pacing may differ. ~100k points is the agreed representative workload, not a scale claim.
+
+Independent follow-up at `ba25b6d` requested a discriminating occlusion regression and workload-isolated timing — both corrected above (measurements in the table are the corrected acceptance run, 2026-10-23).

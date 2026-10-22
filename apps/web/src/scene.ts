@@ -167,6 +167,11 @@ export class CorridorScene {
     return n;
   }
 
+  /** Drop accumulated frame deltas so a measurement window starts clean. */
+  resetFrameStats() {
+    this.frameTimes = [];
+  }
+
   /** Recent inter-frame deltas (ms), for performance measurement. */
   frameStats(): { count: number; p50: number; p95: number; max: number } {
     const t = [...this.frameTimes].sort((a, b) => a - b);
@@ -200,9 +205,16 @@ export class CorridorScene {
     return objs;
   }
 
-  private pointerDown(e: PointerEvent) {
-    if (e.button !== 0 || this.dragPlane) return;
-    this.pointerRay(e); // positions the raycaster from the pointer
+  private classifyAt(
+    clientX: number,
+    clientY: number,
+  ): { pick: PickResult; first: RawHit | null } {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(ndc, this.camera);
     this.raycaster.params.Points = { threshold: 0.35 };
     const hits = this.raycaster.intersectObjects(this.pickables(), false);
     const raw: RawHit[] = hits.map((h) => {
@@ -219,14 +231,43 @@ export class CorridorScene {
         visible: h.object.visible,
         spanId: u.spanId,
         which: u.which,
+        pickId: u.pickId as string | undefined,
       };
     });
-    const pick = classifyHits(raw);
+    return {
+      pick: classifyHits(raw),
+      first: raw.find((h) => h.visible) ?? null,
+    };
+  }
+
+  private pointerDown(e: PointerEvent) {
+    if (e.button !== 0 || this.dragPlane) return;
+    const { pick } = this.classifyAt(e.clientX, e.clientY);
     if (pick.kind === "handle") {
       this.beginDrag(pick.spanId!, pick.which!, e);
       return;
     }
     this.onPick(pick);
+  }
+
+  /** Pick classification at a page pixel (test hook for pick ordering).
+   *  `hitType`/`hitId` describe the nearest visible intercepted object so a
+   *  test can identify which object shadowed the pick. */
+  pickAtScreen(x: number, y: number): {
+    kind: PickResult["kind"];
+    hitType: RawHit["type"] | null;
+    hitId: string | null;
+    spanId?: string;
+    which?: "a" | "b";
+  } {
+    const { pick, first } = this.classifyAt(x, y);
+    return {
+      kind: pick.kind,
+      hitType: first?.type ?? null,
+      hitId: first?.pickId ?? null,
+      spanId: pick.spanId,
+      which: pick.which,
+    };
   }
 
   private beginDrag(spanId: string, which: "a" | "b", e: PointerEvent) {
@@ -346,6 +387,7 @@ export class CorridorScene {
         new THREE.PointsMaterial({ color: 0x546e7a, size: 0.18 }),
       );
       this.contextPoints.userData.blocker = true;
+      this.contextPoints.userData.pickId = "context";
       this.scene.add(this.contextPoints);
     }
 
@@ -365,6 +407,7 @@ export class CorridorScene {
         new THREE.MeshBasicMaterial({ color: 0x455a64 }),
       );
       post.userData.blocker = true;
+      post.userData.pickId = `pole:${pole.pole_id}`;
       const maxZ = Math.max(...pole.attachment_candidates.map((c) => c.point[2]));
       post.rotation.x = Math.PI / 2; // cylinder axis is +y; stand it up along +z
       post.scale.y = maxZ;

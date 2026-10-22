@@ -12,25 +12,28 @@ test("100k-point workload: load, select, edit latency, resources", async ({
   await expect(page.getByTestId("load-status")).toHaveText(/corridor-a/, {
     timeout: 60000,
   });
-  await page.getByLabel("dataset").selectOption("corridor-perf");
-
+  // Clock starts before the triggering action so the whole load is measured.
   const t0 = Date.now();
+  await page.getByLabel("dataset").selectOption("corridor-perf");
   await expect(page.getByTestId("load-status")).toHaveText(/corridor-perf/, {
     timeout: 60000,
   });
   const loadMs = Date.now() - t0;
 
-  // Let the render loop settle, then sample frame deltas + render resources.
-  await page.waitForTimeout(1500);
-  const frames = await page.evaluate(() =>
-    (window as any).__cateniq_perf.scene.frameStats(),
-  );
-  // Fixed camera for comparable render-resource counts across reloads
-  // (renderer.info counts only objects drawn in the last frame).
+  // Frame sampling must isolate the declared workload: fix the camera on the
+  // perf corridor, let it settle, then reset the sample window and measure a
+  // defined interval — no corridor-a or transition frames in the stats.
   await page.evaluate(() =>
     (window as any).__cateniq_perf.scene.setCamera([200, -140, 90], [200, 0, 10]),
   );
-  await page.waitForTimeout(120);
+  await page.waitForTimeout(1000);
+  await page.evaluate(() =>
+    (window as any).__cateniq_perf.scene.resetFrameStats(),
+  );
+  await page.waitForTimeout(3000); // defined measurement window
+  const frames = await page.evaluate(() =>
+    (window as any).__cateniq_perf.scene.frameStats(),
+  );
   const heap0 = await page.evaluate(
     () => (performance as any).memory?.usedJSHeapSize ?? 0,
   );

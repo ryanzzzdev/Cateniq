@@ -141,36 +141,115 @@ test("co-located handles: the selected span's visible handle wins", async ({
 test("occluded handle cannot be dragged through a pole", async ({ page }) => {
   await loadCorridorA(page);
   await selectS2(page);
-  // Bird's-eye camera straight above P3: the pole post (top 13.5) occludes
-  // the b-handle below it (10.5). Clicking its position must do nothing.
-  const px = await page.evaluate(() => {
-    const scene = (window as any).__cateniq_perf.scene;
-    scene.setCamera([95, 0, 45], [95, 0, 10]);
-    return scene.worldToScreen([95, 0, 10.5]);
+  // Bird's-eye camera straight above P3: the pole post (top 12.0) occludes
+  // the b-handle below it (10.5). The pick must be intercepted by the post.
+  await page.evaluate(() =>
+    (window as any).__cateniq_perf.scene.setCamera([95, 0, 45], [95, 0, 10]),
+  );
+  await page.waitForTimeout(400); // let damped controls converge
+  const px = await page.evaluate(() =>
+    (window as any).__cateniq_perf.scene.worldToScreen([95, 0, 10.5]),
+  );
+  // Identify what intercepts the click. Two blocker layers lie over the
+  // handle: corridor context points and the P3 post. Peeling them must
+  // change the identified interceptor at each step — discriminating
+  // evidence that blocking, not incidental geometry, prevents the grab.
+  const pickAt = () =>
+    page.evaluate(
+      (p) => (window as any).__cateniq_perf.scene.pickAtScreen(p.x, p.y),
+      px,
+    );
+  const setBlocker = (id: string, on: boolean) =>
+    page.evaluate(
+      ([id, on]) =>
+        (window as any).__cateniq_perf.scene.scene.traverse((o: any) => {
+          if (o.userData?.pickId === id) o.userData.blocker = on;
+        }),
+      [id, on] as const,
+    );
+
+  await expect.poll(pickAt).toMatchObject({
+    kind: "none",
+    hitType: "blocker",
+    hitId: "context",
   });
-  await page.mouse.click(px.x, px.y);
+  // The context cloud is the first interceptor; hiding it (invisible objects
+  // are skipped, not merely unblocked) exposes the P3 post underneath.
+  await page.evaluate(() => {
+    (window as any).__cateniq_perf.scene.scene.traverse((o: any) => {
+      if (o.userData?.pickId === "context") o.visible = false;
+    });
+  });
+  await expect.poll(pickAt).toMatchObject({
+    kind: "none",
+    hitType: "blocker",
+    hitId: "pole:P3",
+  });
+
+  // Discriminating control — run while S2 is still selected so its handle is
+  // visible. The ray's remaining stack above the handle is: S3's geometry
+  // (endpoint at the same pole), then S2's own conductor points, then the
+  // handle. Peeling each layer must change the pick outcome — evidence the
+  // blockers were decisive, not incidental coordinates.
+  await setBlocker("pole:P3", false);
+  await expect.poll(pickAt).toMatchObject({ kind: "span", spanId: "S3" });
+  const hideSpanGeometry = (id: string, show: boolean) =>
+    page.evaluate(
+      ([id, show]) =>
+        (window as any).__cateniq_perf.scene.scene.traverse((o: any) => {
+          if (o.userData?.spanId === id && !o.userData?.type) {
+            o.visible = show;
+          }
+        }),
+      [id, show] as const,
+    );
+  await hideSpanGeometry("S3", false);
+  await expect.poll(pickAt).toMatchObject({ kind: "span", spanId: "S2" });
+  await hideSpanGeometry("S2", false);
+  await expect.poll(pickAt).toMatchObject({
+    kind: "handle",
+    spanId: "S2",
+    which: "b",
+  });
+  await page.mouse.move(px.x, px.y);
+  await page.mouse.down();
+  await page.mouse.move(px.x + 6, px.y + 6, { steps: 3 });
+  await expect(page.getByTestId("draft-panel")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+
+  // Restore every peeled layer. The drag above re-aimed the camera at S2's
+  // midpoint, so return overhead and reproject before the held-pointer
+  // check: pressing the occluded pixel must start no draft and must clear
+  // the selection while the button is still down.
+  await setBlocker("pole:P3", true);
+  await page.evaluate(() => {
+    (window as any).__cateniq_perf.scene.scene.traverse((o: any) => {
+      if (o.userData?.pickId === "context") o.visible = true;
+    });
+  });
+  await hideSpanGeometry("S3", true);
+  await hideSpanGeometry("S2", true);
+  await page.evaluate(() =>
+    (window as any).__cateniq_perf.scene.setCamera([95, 0, 45], [95, 0, 10]),
+  );
+  await page.waitForTimeout(400);
+  const px2 = await page.evaluate(() =>
+    (window as any).__cateniq_perf.scene.worldToScreen([95, 0, 10.5]),
+  );
+  const restored = await page.evaluate(
+    (p) => (window as any).__cateniq_perf.scene.pickAtScreen(p.x, p.y),
+    px2,
+  );
+  expect(restored).toMatchObject({ kind: "none", hitType: "blocker" });
+  await page.mouse.move(px2.x, px2.y);
+  await page.mouse.down();
   await expect(page.getByTestId("draft-panel")).toHaveCount(0);
-  // The pole hit deselected S2 — nothing moved; reselect to confirm.
+  await expect(page.getByTestId("endpoint-dev")).toHaveCount(0);
+  await page.mouse.up();
+
+  // Nothing was committed through either path.
   await page.getByRole("button", { name: /^S2/ }).click();
   await expect(page.getByTestId("coord-b-2")).toHaveValue("10.50");
   await expect(page.getByTestId("unsaved-note")).toHaveCount(0);
-
-  // Restore the oblique view and prove the same handle still drags.
-  await page.evaluate(() => {
-    const scene = (window as any).__cateniq_perf.scene;
-    scene.setCamera([100, -140, 90], [72.5, 0, 11]);
-  });
-  await page.waitForTimeout(200);
-  const from = await page.evaluate(() =>
-    (window as any).__cateniq_perf.scene.worldToScreen([95, 0, 10.5]),
-  );
-  const to = await page.evaluate(() =>
-    (window as any).__cateniq_perf.scene.worldToScreen([95, 0, 12]),
-  );
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move(to.x, to.y, { steps: 6 });
-  await page.mouse.up();
-  await expect(page.getByTestId("unsaved-note")).toContainText("1 local edit");
-  await expect(page.getByTestId("coord-b-2")).toHaveValue("12.00");
 });

@@ -22,7 +22,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 ## Delivery notes
 
-Workspace, profile, fixtures and endpoint prototype are committed; the reopened CAT-006 evidence gaps are closed (see [M1 review](evidence/m1-exit-review.md)). M1 complete → CAT-007 opens M2. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
+Workspace, profile, fixtures and endpoint prototype are committed. The second follow-up review's verification findings are closed (discriminating occlusion regression, workload-isolated timing); M1 is complete — see [M1 review](evidence/m1-exit-review.md). CAT-007 opens M2. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -210,9 +210,13 @@ Prove one endpoint interaction is usable before building a broad editor.
 
 2026-10-23 follow-up: co-located-handle ambiguity and bird's-eye occlusion now e2e-verified; pick ordering unit-tested via `classifyHits`; resource observations recorded (flat 20 MB heap, identical 91-object rebuild across two round-trips). Bugs the new checks exposed and fixed: horizontal pole-post orientation, occluders missing from the pick set, undisposed scene resources. Frame budget re-frozen p50 ≤50 ms / p95 ≤150 ms after later runs falsified p95 ≤50 ms.
 
+2026-10-23 independent follow-up at `ba25b6d`: implementation fixes and resource observations confirmed, but occlusion regression assertions and workload-specific performance sampling need correction. Reopened; see the [follow-up review](evidence/m1-exit-review.md).
+
+2026-10-23 second follow-up: occlusion regression is now a discriminating layer peel (`pickAtScreen` identifies context → P3 post → S3 → S2 points → handle; each removal changes the outcome) with held-pointer and deselection assertions. Perf sampling isolated to the declared workload (clock before the action; 91-sample window at fixed camera): frame p50 33.3 / p95 50 ms, budgets reconciled p50 ≤50 / p95 ≤100 ms.
+
 ### Notes
 
-Prototype scope; no brush, pole editing, persistence or general CAD toolset. Local edits are client-side drafts — durable revisions are CAT-009. Next action: M1 exit review confirmed; CAT-007 opens M2.
+Prototype scope; no brush, pole editing, persistence or general CAD toolset. Local edits are client-side drafts — durable revisions are CAT-009. Next action: M1 exit confirmed; CAT-007 opens M2.
 
 <a id="cat-007"></a>
 
