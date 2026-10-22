@@ -1,0 +1,33 @@
+# Cateniq blockers and open questions
+
+Updated: 2026-10-22
+
+These are scoped implementation gates, not evidence that the project is currently blocked. Documentation setup and planning are complete. Task execution status belongs in the [backlog](backlog.md).
+
+<a id="blk-001"></a>
+
+## BLK-001 — Numerical profile and independent validation
+
+- Identified: 2026-10-22
+- Status: Open
+- Affected tasks/milestones: [CAT-004](backlog.md#cat-004), CAT-005, CAT-007; M1/M2.
+- Question: Which bounded catenary parameterisation and residual/support checks reliably distinguish the initial endpoint-error scenario from sparse or unsupported evidence?
+- Impact: No numerical implementation can be called correct until units, constraints, conditioning checks and error tolerances are specified and independently evaluated.
+- Blocking scope: Gates dependent fixture/fitter acceptance, not workspace bootstrap or the profile investigation itself.
+- Evidence: The concept proposes catenary geometry; no numerical code or benchmark exists. This is a planning gate, not a failed solver attempt.
+- Next action / owner: Implementing agent completes CAT-004 using primary mathematical references and hand-checkable/independently derived fixtures; freeze the supported domain and limitations.
+- Resolution: Pending.
+
+<a id="blk-002"></a>
+
+## BLK-002 — Endpoint interaction and performance budgets
+
+- Identified: 2026-10-22
+- Status: Open
+- Affected tasks/milestones: [CAT-006](backlog.md#cat-006), CAT-008, CAT-012; M1 interaction and M4 performance acceptance.
+- Question: Which constrained editing/snapping interaction is usable with occluded points, and what measured budgets fit the chosen reference machine and workload?
+- Impact: A nominal frame-rate claim cannot establish selection/edit usability or memory behaviour.
+- Blocking scope: Gates interaction/performance acceptance, not the initial prototype. No user answer is currently required.
+- Evidence: Roughly 100,000 points is an initial representative workload; no Cateniq browser measurements exist.
+- Next action / owner: Implementing agent prototypes one endpoint tool in CAT-006, records normal/ambiguous interaction evidence, freezes environment/workload and numerical performance targets before later acceptance.
+- Resolution: Pending.
