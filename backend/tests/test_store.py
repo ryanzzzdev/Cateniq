@@ -1,6 +1,7 @@
 """Review store tests (CAT-009): conditional writes, operation-ID
 idempotency and schema guards against real SQLite — not mocked state."""
 
+import sqlite3
 import threading
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from cateniq.store import (
     OperationConflictError,
     ReviewStore,
     SchemaError,
+    StoreError,
     ValidationError,
 )
 
@@ -124,11 +126,45 @@ class TestSchemaGuard:
             ReviewStore(path)
 
 
+class TestFaults:
+    """CAT-011 fault cases: failures surface as errors and prior durable
+    state survives — never a silent reset."""
+
+    def test_corrupt_db_fails_explicitly(self, tmp_path: Path) -> None:
+        path = tmp_path / "garbage.db"
+        path.write_bytes(b"not a sqlite database" * 4)
+        with pytest.raises(sqlite3.DatabaseError):
+            ReviewStore(path)
+
+    def test_write_failure_surfaces_and_prior_state_survives(
+        self, tmp_path: Path
+    ) -> None:
+        path = tmp_path / "reviews.db"
+        s = ReviewStore(path)
+        s.review("corridor-a", HASH)
+        s.save("corridor-a", op(1), 0, EDITS)
+        # A broken write path fails explicitly — never a silent success —
+        # and committed state survives intact.
+        s._conn.close()
+        with pytest.raises(sqlite3.ProgrammingError):
+            s.save("corridor-a", op(2), 1, EDITS)
+        again = ReviewStore(path)
+        assert again.review("corridor-a", HASH)["revision"] == 1
+        again.close()
+
+
 class TestRunAttempts:
     def test_operation_id_dedupes_attempts(self, store: ReviewStore) -> None:
         a = store.create_run("corridor-a", op(10), 0)
         b = store.create_run("corridor-a", op(10), 0)
         assert b["replayed"] is True and b["attempt_id"] == a["attempt_id"]
+
+    def test_queue_bound_rejects_ninth_active_run(self, store: ReviewStore) -> None:
+        # Contract: queue depth 8 — the ninth admitted run is refused.
+        for i in range(8):
+            store.create_run("corridor-a", op(20 + i), 0)
+        with pytest.raises(StoreError):
+            store.create_run("corridor-a", op(99), 0)
 
     def test_restart_marks_active_attempts_interrupted(self, tmp_path: Path) -> None:
         path = tmp_path / "reviews.db"
@@ -356,6 +392,48 @@ class TestRunApi:
             f"/api/datasets/corridor-a/review/runs/{out['attempt_id']}"
         ).json()
         assert run["state"] == "failed"
+
+    def test_queue_overflow_is_rejected_503(self, client) -> None:
+        for i in range(8):
+            out = client.post(
+                "/api/datasets/corridor-a/review/runs",
+                json={"operation_id": f"run-{i:05d}"},
+            )
+            assert out.status_code == 200, out.text
+        ninth = client.post(
+            "/api/datasets/corridor-a/review/runs",
+            json={"operation_id": "run-99999"},
+        )
+        assert ninth.status_code == 503
+
+    def test_solver_failure_marks_run_failed_with_stage(self, client) -> None:
+        self._save(client)
+        out = client.post(
+            "/api/datasets/corridor-a/review/runs",
+            json={"operation_id": "run-00001"},
+        ).json()
+        svc = client.app.state.service
+        original = svc._refit_result
+
+        def boom(*args: object, **kwargs: object) -> None:
+            raise RuntimeError("solver exploded")
+
+        svc._refit_result = boom
+        try:
+            svc.execute_next()
+        finally:
+            svc._refit_result = original
+        run = client.get(
+            f"/api/datasets/corridor-a/review/runs/{out['attempt_id']}"
+        ).json()
+        assert run["state"] == "failed"
+        assert run["stage"] == "fit"
+        assert "solver exploded" in run["result"]["error"]
+        # A failed attempt never becomes current validation.
+        assert (
+            client.get("/api/datasets/corridor-a/review/runs/current").json()["run"]
+            is None
+        )
 
     def test_acceptance_round_trip_and_race(self, client) -> None:
         # corridor-b is clean — a succeeded run has no blocking issues.

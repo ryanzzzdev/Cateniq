@@ -10,7 +10,7 @@ Build a reproducible spatial review workflow, not a full digital-twin platform. 
 | Planning baseline | Architecture, feature contracts, initial sequence and acceptance gates | Complete | Documentation setup |
 | M1 — Evidence and interaction | Reproducible corridor and usable endpoint correction prototype | Complete | Planning baseline |
 | M2 — Computed correction | Real fitting, diagnostics and reversible correction journey | Complete | M1 |
-| M3 — Durable review | Versioned save, recovery, conflict handling and provenance | Planned | M2 |
+| M3 — Durable review | Versioned save, recovery, conflict handling and provenance | Complete | M2 |
 | M4 — Verified portfolio demo | Reproducible delivery, performance/failure evidence and presentation | Planned | M3 |
 
 Setup and planning completion refer to documents: [CAT-001](backlog.md#cat-001), [CAT-002](backlog.md#cat-002). M1 delivered the workspace, numerical profile, fixtures and endpoint prototype. The [independent exit review](evidence/m1-exit-review.md) reopened CAT-006 for ambiguous/occluded interaction verification, resource observations, discriminating regression assertions and workload-isolated performance sampling; all findings are resolved in committed evidence. M2 delivered production fitting with computed diagnostics and hardened the computed correction journey against stale responses; the [independent review](evidence/m2-exit-review.md) findings on corrected-fit quality gates, lateral support validation and draft-result invalidation are resolved with regression coverage.
@@ -50,11 +50,11 @@ Exit criteria:
 
 Excluded: persistence guarantees and reviewer acceptance; the UI must identify transient state until M3. Full-corridor recomputation is sufficient.
 
-## M3 — Durable review
+## M3 — Durable review — Complete
 
 Outcome: saved corrections survive restart and rerun, conflicts are visible and exports reconstruct the reviewed revision.
 
-Scope: SQLite revisions and operation IDs, bounded processing attempts, interrupted-run recovery, client save/reload/conflict flow, validation/acceptance and export. Tasks: [CAT-009](backlog.md#cat-009)–[CAT-011](backlog.md#cat-011).
+Scope: SQLite revisions and operation IDs, bounded processing attempts, interrupted-run recovery, client save/reload/conflict flow, validation/acceptance and export. Tasks: [CAT-009](backlog.md#cat-009)–[CAT-011](backlog.md#cat-011). All exit criteria verified — see `docs/project/evidence/m3-review-lifecycle.md`.
 
 Dependencies: M2. Persistence/API contracts may be refined earlier, but durable end-to-end acceptance requires the computed workflow.
 
