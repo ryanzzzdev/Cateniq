@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: Numerical profile frozen (CAT-004, [evidence](../evidence/geometry-profile.md)); production fitter not yet implemented.
+Status: Numerical profile frozen (CAT-004, [evidence](../evidence/geometry-profile.md)); corridor fixtures frozen (CAT-005, [evidence](../evidence/corridor-fixtures.md)); production fitter not yet implemented.
 
 ## Inputs and output boundary
 
@@ -33,7 +33,13 @@ An intentionally displaced predicted endpoint may drive the demonstration, provi
 
 ## Fixture coverage
 
-Prepare a small nominal case, an endpoint-error case, noisy observations, missing/occluded observations, insufficient evidence, unequal support heights within the supported model, and an infeasible correction. Include unchanged good spans so validation does not merely flag every entity. Test at least one held-out seed/geometry beyond the main demo.
+Prepared in `fixtures/` (generator `cateniq.datasets.gen`, CLI `scripts/generate_corridor.py`; each dataset is manifest + observation `.npy` + predictions + evaluation reference):
+
+- `corridor-a` (demo): S1 nominal, S2 planted endpoint error (disclosed in manifest metadata, detected geometrically), S3 unequal support heights, S4 noisy observations that fail the RMS gate.
+- `corridor-b` (evaluation-holdout): held-out seed and geometry, all clean fits.
+- `corridor-adverse`: A1 occluded (gap) and A2 sparse (points) — both return INSUFFICIENT_EVIDENCE.
+
+Unchanged good spans (S1, S3, B1–B3) confirm validation does not flag every entity. An infeasible correction is exercised by constraining S2 to the low attachment candidate (INFEASIBLE at the `a` bound).
 
 For the initial full-corridor rebuild, results must be repeatable within the declared numerical tolerance for identical inputs, versions and parameters. Cross-platform bitwise identity is not promised.
 

@@ -1,0 +1,265 @@
+{
+  "assets": {
+    "context": {
+      "path": "observations/context.npy",
+      "point_count": 900,
+      "sha256": "fe918b85381061e739ae99df885d224501afba48bdec44d51d0b1a8f9b0459ff"
+    },
+    "evaluation": {
+      "planted_errors": [
+        {
+          "kind": "endpoint-displacement",
+          "predicted_candidate": "P3:mid",
+          "span_id": "S2",
+          "true_candidate": "P3:high"
+        }
+      ],
+      "reference": "evaluation/reference.json",
+      "sha256": "1ac60f79ff24956423f393c449d121e3d8c1c4425d7701bd7965f38f98ad2bba"
+    },
+    "observations": [
+      {
+        "path": "observations/S1.npy",
+        "point_count": 350,
+        "sha256": "97f09b0e61491acbf9c03ed2d7db2420c052087a9072959f9776bc56fdeb602d",
+        "span_id": "S1"
+      },
+      {
+        "path": "observations/S2.npy",
+        "point_count": 400,
+        "sha256": "c6e3926907b45652499e9bc51128d8365e98934ea80ff098d2ace4ce81b62756",
+        "span_id": "S2"
+      },
+      {
+        "path": "observations/S3.npy",
+        "point_count": 320,
+        "sha256": "afca043573d7f5f35f15e3a898edec38c030ca5984bcc4eb629adf25e6e81e5e",
+        "span_id": "S3"
+      },
+      {
+        "path": "observations/S4.npy",
+        "point_count": 300,
+        "sha256": "9605bb900e449b0161eaebe09f43081fb5d885c7e7cc0a07ffe91d20ff10ae81",
+        "span_id": "S4"
+      }
+    ],
+    "predictions": {
+      "path": "predictions/predictions.json",
+      "sha256": "12e490bcd69d592e9c3df87f4dea168588bdeefeabba72f6e61b1a81c8da54cc"
+    }
+  },
+  "coordinate_convention": {
+    "axes": "right-handed",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "units": "m",
+    "up": "+Z"
+  },
+  "dataset_id": "corridor-a",
+  "generator": {
+    "name": "cateniq.datasets.gen",
+    "seed": 20261022,
+    "version": 1
+  },
+  "role": "demo",
+  "schema_version": 1,
+  "topology": {
+    "poles": [
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "P1:high",
+            "point": [
+              0.0,
+              0.0,
+              12.0
+            ]
+          },
+          {
+            "candidate_id": "P1:mid",
+            "point": [
+              0.0,
+              0.0,
+              10.5
+            ]
+          },
+          {
+            "candidate_id": "P1:low",
+            "point": [
+              0.0,
+              0.0,
+              8.5
+            ]
+          }
+        ],
+        "pole_id": "P1",
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "P2:high",
+            "point": [
+              50.0,
+              0.0,
+              12.0
+            ]
+          },
+          {
+            "candidate_id": "P2:mid",
+            "point": [
+              50.0,
+              0.0,
+              10.5
+            ]
+          },
+          {
+            "candidate_id": "P2:low",
+            "point": [
+              50.0,
+              0.0,
+              8.5
+            ]
+          }
+        ],
+        "pole_id": "P2",
+        "position": [
+          50.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "P3:high",
+            "point": [
+              95.0,
+              0.0,
+              12.0
+            ]
+          },
+          {
+            "candidate_id": "P3:mid",
+            "point": [
+              95.0,
+              0.0,
+              10.5
+            ]
+          },
+          {
+            "candidate_id": "P3:low",
+            "point": [
+              95.0,
+              0.0,
+              8.5
+            ]
+          }
+        ],
+        "pole_id": "P3",
+        "position": [
+          95.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "P4:high",
+            "point": [
+              150.0,
+              0.0,
+              13.0
+            ]
+          },
+          {
+            "candidate_id": "P4:mid",
+            "point": [
+              150.0,
+              0.0,
+              11.5
+            ]
+          },
+          {
+            "candidate_id": "P4:low",
+            "point": [
+              150.0,
+              0.0,
+              9.0
+            ]
+          }
+        ],
+        "pole_id": "P4",
+        "position": [
+          150.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "P5:high",
+            "point": [
+              205.0,
+              0.0,
+              12.0
+            ]
+          },
+          {
+            "candidate_id": "P5:mid",
+            "point": [
+              205.0,
+              0.0,
+              10.5
+            ]
+          },
+          {
+            "candidate_id": "P5:low",
+            "point": [
+              205.0,
+              0.0,
+              8.5
+            ]
+          }
+        ],
+        "pole_id": "P5",
+        "position": [
+          205.0,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "spans": [
+      {
+        "pole_a": "P1",
+        "pole_b": "P2",
+        "span_id": "S1"
+      },
+      {
+        "pole_a": "P2",
+        "pole_b": "P3",
+        "span_id": "S2"
+      },
+      {
+        "pole_a": "P3",
+        "pole_b": "P4",
+        "span_id": "S3"
+      },
+      {
+        "pole_a": "P4",
+        "pole_b": "P5",
+        "span_id": "S4"
+      }
+    ]
+  }
+}

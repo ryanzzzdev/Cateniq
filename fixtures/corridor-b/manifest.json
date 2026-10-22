@@ -1,0 +1,213 @@
+{
+  "assets": {
+    "context": {
+      "path": "observations/context.npy",
+      "point_count": 840,
+      "sha256": "5fdb4602625afc0213efbcfe54ae150f10500e54ca65ed747e4ae7ffab1716e3"
+    },
+    "evaluation": {
+      "planted_errors": [],
+      "reference": "evaluation/reference.json",
+      "sha256": "b17ae677d5ef217cbb200d3bdd19a6f52ebe076f1ae015e6adc4041969544e29"
+    },
+    "observations": [
+      {
+        "path": "observations/B1.npy",
+        "point_count": 300,
+        "sha256": "85deddf516f6dcdcd9e27f8c8ca1b335a8745818a11551a0c2b8e1f6d38501ad",
+        "span_id": "B1"
+      },
+      {
+        "path": "observations/B2.npy",
+        "point_count": 280,
+        "sha256": "d7cbeb80d171c04fddc882ad5570b206aab9c9ad200fe9d1fea1895bb557555e",
+        "span_id": "B2"
+      },
+      {
+        "path": "observations/B3.npy",
+        "point_count": 280,
+        "sha256": "debbf413f89d0f3c8a626a1f5dcd4bfae71efcb215316cac29f68195d8db1296",
+        "span_id": "B3"
+      }
+    ],
+    "predictions": {
+      "path": "predictions/predictions.json",
+      "sha256": "7d53b6ecdbb85e42c9f051dd9da16d6a5279960fc2c94a07b85813ce6ea99e2e"
+    }
+  },
+  "coordinate_convention": {
+    "axes": "right-handed",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "units": "m",
+    "up": "+Z"
+  },
+  "dataset_id": "corridor-b",
+  "generator": {
+    "name": "cateniq.datasets.gen",
+    "seed": 777,
+    "version": 1
+  },
+  "role": "evaluation-holdout",
+  "schema_version": 1,
+  "topology": {
+    "poles": [
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "Q1:high",
+            "point": [
+              0.0,
+              0.0,
+              11.5
+            ]
+          },
+          {
+            "candidate_id": "Q1:mid",
+            "point": [
+              0.0,
+              0.0,
+              10.0
+            ]
+          },
+          {
+            "candidate_id": "Q1:low",
+            "point": [
+              0.0,
+              0.0,
+              8.0
+            ]
+          }
+        ],
+        "pole_id": "Q1",
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "Q2:high",
+            "point": [
+              48.0,
+              0.0,
+              11.5
+            ]
+          },
+          {
+            "candidate_id": "Q2:mid",
+            "point": [
+              48.0,
+              0.0,
+              10.0
+            ]
+          },
+          {
+            "candidate_id": "Q2:low",
+            "point": [
+              48.0,
+              0.0,
+              8.0
+            ]
+          }
+        ],
+        "pole_id": "Q2",
+        "position": [
+          48.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "Q3:high",
+            "point": [
+              92.0,
+              0.0,
+              12.5
+            ]
+          },
+          {
+            "candidate_id": "Q3:mid",
+            "point": [
+              92.0,
+              0.0,
+              11.0
+            ]
+          },
+          {
+            "candidate_id": "Q3:low",
+            "point": [
+              92.0,
+              0.0,
+              9.0
+            ]
+          }
+        ],
+        "pole_id": "Q3",
+        "position": [
+          92.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "Q4:high",
+            "point": [
+              140.0,
+              0.0,
+              11.0
+            ]
+          },
+          {
+            "candidate_id": "Q4:mid",
+            "point": [
+              140.0,
+              0.0,
+              9.5
+            ]
+          },
+          {
+            "candidate_id": "Q4:low",
+            "point": [
+              140.0,
+              0.0,
+              7.5
+            ]
+          }
+        ],
+        "pole_id": "Q4",
+        "position": [
+          140.0,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "spans": [
+      {
+        "pole_a": "Q1",
+        "pole_b": "Q2",
+        "span_id": "B1"
+      },
+      {
+        "pole_a": "Q2",
+        "pole_b": "Q3",
+        "span_id": "B2"
+      },
+      {
+        "pole_a": "Q3",
+        "pole_b": "Q4",
+        "span_id": "B3"
+      }
+    ]
+  }
+}

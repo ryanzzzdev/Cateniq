@@ -10,8 +10,8 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 - ✅ [CAT-002 — Establish the implementation planning baseline](#cat-002)
 - ✅ [CAT-003 — Bootstrap the minimal development workspace](#cat-003)
 - ✅ [CAT-004 — Freeze the supported geometry and dataset profile](#cat-004)
-- 🟢 [CAT-005 — Build reproducible corridor fixtures](#cat-005)
-- 📋 [CAT-006 — Prototype endpoint inspection and editing](#cat-006)
+- ✅ [CAT-005 — Build reproducible corridor fixtures](#cat-005)
+- 🟢 [CAT-006 — Prototype endpoint inspection and editing](#cat-006)
 - 📋 [CAT-007 — Implement fitting and computed diagnostics](#cat-007)
 - 📋 [CAT-008 — Complete the computed correction journey](#cat-008)
 - 📋 [CAT-009 — Implement durable revisions and recoverable runs](#cat-009)
@@ -22,7 +22,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 ## Delivery notes
 
-Workspace skeleton (CAT-003) and the frozen numerical profile (CAT-004) are committed. Next: CAT-005 (fixtures, now Ready) → CAT-006 closes M1. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
+Workspace skeleton (CAT-003), frozen numerical profile (CAT-004) and reproducible corridor fixtures (CAT-005) are committed. Next: CAT-006 endpoint prototype closes M1. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -147,7 +147,7 @@ Profile frozen in `backend/src/cateniq/geometry/profile.py`: span-local (u, v) p
 
 ### Notes
 
-A vertex-bracketing gate was tried and dropped — it rejected supported unequal-height (vertex-outside-span) cases; conditioning and a-bounds carry that risk instead. Reference implementation in `catenary.py` validates the profile; CAT-007 hardens it. Next action: CAT-005.
+A vertex-bracketing gate was tried and dropped — it rejected supported unequal-height (vertex-outside-span) cases; conditioning and a-bounds carry that risk instead. Reference implementation in `catenary.py` validates the profile; CAT-007 hardens it. Next action: CAT-006.
 
 <a id="cat-005"></a>
 
@@ -157,9 +157,9 @@ A vertex-bracketing gate was tried and dropped — it rejected supported unequal
 - Area: geometry
 - Milestone: M1
 - Priority: Normal
-- Status: Ready 🟢
+- Status: Done ✅
 - Depends on: CAT-003, CAT-004
-- References: [Specification](features/datasets-and-geometry.md)
+- References: [Specification](features/datasets-and-geometry.md), [Evidence](evidence/corridor-fixtures.md)
 
 ### Outcome
 
@@ -173,11 +173,11 @@ Generate and load labelled synthetic evidence with independent evaluation refere
 
 ### Completion evidence
 
-Not started; no implementation or verification evidence yet.
+2026-10-22: `backend/tests/test_datasets.py` (14 checks) passes; fixtures byte-identical on regeneration; measured outcomes recorded in [evidence/corridor-fixtures.md](evidence/corridor-fixtures.md). Committed alongside the implementation.
 
 ### Notes
 
-Prerequisites passed 2026-10-22; keep generated assets small and reproducible.
+Three seeded datasets (demo, held-out, adverse). Fitter-facing loading never reads evaluation assets; the S2 planted endpoint error surfaces only through the computed endpoint-deviation check. Held-out B3 confirms geometric fidelity is the honest metric when `a` is weakly identified. Next action: CAT-006.
 
 <a id="cat-006"></a>
 
@@ -187,7 +187,7 @@ Prerequisites passed 2026-10-22; keep generated assets small and reproducible.
 - Area: workbench
 - Milestone: M1
 - Priority: Normal
-- Status: Backlog 📋
+- Status: Ready 🟢
 - Depends on: CAT-005
 - References: [Specification](features/workbench.md)
 
@@ -218,7 +218,7 @@ Prototype scope; no brush, pole editing, persistence or general CAD toolset.
 - Area: geometry
 - Milestone: M2
 - Priority: Normal
-- Status: Backlog 📋
+- Status: Ready 🟢
 - Depends on: CAT-005, CAT-006
 - References: [Specification](features/datasets-and-geometry.md)
 

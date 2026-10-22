@@ -1,0 +1,168 @@
+{
+  "assets": {
+    "context": {
+      "path": "observations/context.npy",
+      "point_count": 780,
+      "sha256": "535052b067418b6bf6a6b74477b1481d0795d6b1d325afbe58f39a8351451fa2"
+    },
+    "evaluation": {
+      "planted_errors": [],
+      "reference": "evaluation/reference.json",
+      "sha256": "5791be218c9378b8a80122025fe7b651f8d72aafc962a83a287ad6230f5f16fb"
+    },
+    "observations": [
+      {
+        "path": "observations/A1.npy",
+        "point_count": 220,
+        "sha256": "33ff17d37114fc4afbd8c474984462fa46a3a5512c7c1a2d5a93c678bd0177a1",
+        "span_id": "A1"
+      },
+      {
+        "path": "observations/A2.npy",
+        "point_count": 14,
+        "sha256": "e800a673672b6cff08dc38620f4f20bd4edd46c7507e4bdffbafc9a9169f7e34",
+        "span_id": "A2"
+      }
+    ],
+    "predictions": {
+      "path": "predictions/predictions.json",
+      "sha256": "fe354824fde6c4c3087a2fd63188ff1325f88c80d982f7bb766eb4fa28ee0493"
+    }
+  },
+  "coordinate_convention": {
+    "axes": "right-handed",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "units": "m",
+    "up": "+Z"
+  },
+  "dataset_id": "corridor-adverse",
+  "generator": {
+    "name": "cateniq.datasets.gen",
+    "seed": 31337,
+    "version": 1
+  },
+  "role": "adverse",
+  "schema_version": 1,
+  "topology": {
+    "poles": [
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "R1:high",
+            "point": [
+              0.0,
+              0.0,
+              12.0
+            ]
+          },
+          {
+            "candidate_id": "R1:mid",
+            "point": [
+              0.0,
+              0.0,
+              10.5
+            ]
+          },
+          {
+            "candidate_id": "R1:low",
+            "point": [
+              0.0,
+              0.0,
+              8.5
+            ]
+          }
+        ],
+        "pole_id": "R1",
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "R2:high",
+            "point": [
+              50.0,
+              0.0,
+              12.0
+            ]
+          },
+          {
+            "candidate_id": "R2:mid",
+            "point": [
+              50.0,
+              0.0,
+              10.5
+            ]
+          },
+          {
+            "candidate_id": "R2:low",
+            "point": [
+              50.0,
+              0.0,
+              8.5
+            ]
+          }
+        ],
+        "pole_id": "R2",
+        "position": [
+          50.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "attachment_candidates": [
+          {
+            "candidate_id": "R3:high",
+            "point": [
+              100.0,
+              0.0,
+              12.0
+            ]
+          },
+          {
+            "candidate_id": "R3:mid",
+            "point": [
+              100.0,
+              0.0,
+              10.5
+            ]
+          },
+          {
+            "candidate_id": "R3:low",
+            "point": [
+              100.0,
+              0.0,
+              8.5
+            ]
+          }
+        ],
+        "pole_id": "R3",
+        "position": [
+          100.0,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "spans": [
+      {
+        "pole_a": "R1",
+        "pole_b": "R2",
+        "span_id": "A1"
+      },
+      {
+        "pole_a": "R2",
+        "pole_b": "R3",
+        "span_id": "A2"
+      }
+    ]
+  }
+}
