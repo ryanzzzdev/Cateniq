@@ -19,6 +19,7 @@ AGENTS.md                         Scoped agent workflow instructions
 docs/project-concept.md           Stable motivation and portfolio context
 .devin/skills/project-management/ Portable project-management skill
 docs/initial-discussion/          Preserved background proposals and conversations
+docs/agent-notes/                  Tooling notes and agent workarounds (non-canonical)
 docs/project/
   documentation-guide.md         Process, templates, and record ownership
   roadmap.md                     Milestones, scope, dependencies, exit criteria
@@ -112,7 +113,7 @@ Material context, blocker link, next action, or reason for reopening/dropping.
 | Done | ✅ | Acceptance and required verification satisfied, with evidence |
 | Dropped | 🗑️ | Removed from scope deliberately, with a recorded reason |
 
-Write the icon after the status word in task sections, for example `Status: Done ✅`. Update the index icon whenever status changes.
+Write the icon after the status word in task sections, for example `Status: Done ✅`. Update the index icon whenever status changes. Several status icons are non-BMP (4-byte UTF-8) characters that the file-edit tools corrupt on write; apply icon changes with scripted writes and verify the bytes per [the emoji-corruption note](../agent-notes/emoji-corruption.md).
 
 Prefer tasks reviewable in a focused session. Split by meaningful outcome, not file count. Retain completed records. Required verification pending means the task is not Done. Reopen with a reason or create a follow-up for new scope. Minor edits need not manufacture a task.
 

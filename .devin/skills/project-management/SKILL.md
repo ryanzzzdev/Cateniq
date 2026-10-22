@@ -39,4 +39,5 @@ Update only affected records. If an answer is purely explanatory, a status check
 - Keep status in the backlog, milestone progress in the roadmap, reasoning in decisions, and historical outcomes in the journal. Prefer links to duplicate explanations.
 - Preserve completed records and decision history. Supersede outdated decisions rather than silently rewriting their original reasoning.
 - Do not overwrite unrelated work, bootstrap every missing document during routine closeout, or rewrite the backlog based on guesses. If a required record cannot be updated, state the specific limitation and next action.
+- Status icons and other non-BMP characters are corrupted by the `edit`/`write` tools; apply those changes with scripted writes and verify the bytes — see `docs/agent-notes/emoji-corruption.md`.
 - This workflow does not authorise commits, pushes, messages, external tracker mutations, or scheduled automations. Preserve the user's existing authorisation scope.
