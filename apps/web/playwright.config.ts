@@ -11,7 +11,8 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: "cd ../../backend && uv run uvicorn cateniq.app:app --port 8000",
+      command:
+        "cd ../../backend && rm -f .e2e-reviews.db && CATENIQ_DB_PATH=.e2e-reviews.db uv run uvicorn cateniq.app:app --port 8000",
       url: "http://localhost:8000/api/health",
       reuseExistingServer: !process.env.CI,
     },

@@ -20,3 +20,6 @@ playwright-report/
 *.tsbuildinfo
 .perf-fixtures/
 reviews.db*
+reviews.db
+.e2e-reviews.db
+.e2e-reviews.db*

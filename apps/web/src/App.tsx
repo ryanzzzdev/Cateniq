@@ -9,7 +9,12 @@ import {
   fetchDataset,
   fetchDatasets,
   fetchDiagnostics,
+  fetchReview,
+  fetchRun,
+  postAccept,
   postFit,
+  postOperation,
+  postRun,
   type Dataset,
   type Vec3,
 } from "./api";
@@ -25,6 +30,10 @@ declare global {
   }
 }
 window.__cateniq_perf = {};
+
+/** Correlates dataset loads: a superseded openDataset response must not
+ *  overwrite newer state (dataset switches discard in-flight results). */
+let loadEpoch = 0;
 
 export default function App() {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -113,16 +122,23 @@ export default function App() {
       if (!window.confirm("Unsaved local edits will be discarded. Continue?"))
         return;
     }
+    const epoch = ++loadEpoch;
     store.setLoading(id);
     try {
-      const [ds, diag] = await Promise.all([
+      const [ds, diag, review] = await Promise.all([
         fetchDataset(id),
         fetchDiagnostics(id),
+        fetchReview(id),
       ]);
-      store.setReady(ds, diag);
+      if (epoch !== loadEpoch) return; // superseded — discard
+      store.setReady(ds, diag, {
+        revision: review.revision,
+        savedEdits: review.constraints,
+        accepted: review.accepted,
+      });
       window.__cateniq_perf!.readyAt = performance.now();
     } catch (e) {
-      store.setError(String(e));
+      if (epoch === loadEpoch) store.setError(String(e));
     }
   }
 
@@ -187,6 +203,84 @@ export default function App() {
     }
   }
 
+  /** Effective constraint set: every span whose endpoints differ from the
+   *  prediction — the full set the durable save stores (not a delta). */
+  function effectiveEdits() {
+    const s = store.get();
+    const edits: Record<string, { attach_a: Vec3; attach_b: Vec3 }> = {};
+    if (!s.dataset) return edits;
+    for (const span of s.dataset.spans) {
+      const pred = s.dataset.predictions[span.span_id];
+      const a = store.attachFor(span.span_id, "a");
+      const b = store.attachFor(span.span_id, "b");
+      const differs = (x: Vec3, y: number[]) =>
+        x.some((v, i) => Math.abs(v - y[i]) > 1e-9);
+      if (differs(a, pred.attach_a) || differs(b, pred.attach_b)) {
+        edits[span.span_id] = { attach_a: a, attach_b: b };
+      }
+    }
+    return edits;
+  }
+
+  async function save() {
+    const s = store.get();
+    if (!s.datasetId || s.draft) return;
+    store.beginSave();
+    try {
+      await postOperation(s.datasetId, {
+        operation_id: crypto.randomUUID(),
+        base_revision: s.revision,
+        edits: effectiveEdits(),
+      });
+      const review = await fetchReview(s.datasetId);
+      store.recordSaved(
+        review.revision,
+        review.constraints,
+        review.accepted,
+      );
+    } catch (e) {
+      const conflict = (e as { conflict?: { detail: string; current_revision: number } }).conflict;
+      if (conflict && typeof conflict === "object") {
+        store.setConflict(conflict.detail, conflict.current_revision);
+      } else {
+        store.fitFailed();
+        store.setError(String(e));
+      }
+    }
+  }
+
+  async function runValidation() {
+    const id = store.get().datasetId;
+    if (!id) return;
+    store.beginRun();
+    try {
+      const { attempt_id } = await postRun(id, crypto.randomUUID());
+      for (;;) {
+        const run = await fetchRun(id, attempt_id);
+        if (run.state !== "queued" && run.state !== "running") {
+          store.recordRun(run);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    } catch (e) {
+      store.recordRun(null);
+      store.setError(String(e));
+    }
+  }
+
+  async function accept() {
+    const s = store.get();
+    const run = s.run;
+    if (!s.datasetId || !run || run.state !== "succeeded") return;
+    try {
+      const acc = await postAccept(s.datasetId, run.input_revision, run.attempt_id);
+      store.recordAccepted(acc);
+    } catch (e) {
+      store.setError(String(e));
+    }
+  }
+
   return (
     <div className="app">
       <header>
@@ -237,6 +331,9 @@ export default function App() {
         onUndo={() => store.undo()}
         onRedo={() => store.redo()}
         onValidate={(sid) => void validate(sid)}
+        onSave={() => void save()}
+        onRun={() => void runValidation()}
+        onAccept={() => void accept()}
       />
     </div>
   );

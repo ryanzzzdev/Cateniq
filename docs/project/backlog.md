@@ -327,7 +327,7 @@ Refine exact execution mechanism here; no distributed task broker or production 
 - Area: review
 - Milestone: M3
 - Priority: Normal
-- Status: Backlog 📋
+- Status: Done ✅
 - Depends on: CAT-009
 - References: [Specification](features/review-lifecycle.md)
 
@@ -344,7 +344,7 @@ Make durable review understandable and complete in the workbench.
 
 ### Completion evidence
 
-Not started; no implementation or verification evidence yet.
+Workbench review flow implemented (`apps/web/src/api.ts`, `store.ts`, `panels.tsx`, `App.tsx`): saved constraint set is the durable baseline under local edits; Save posts the full effective constraint set with the displayed revision; conflicts surface the authoritative revision while the losing edits stay inspectable; run validation polls a durable attempt; Accept binds to the current revision's clean run; revision/acceptance badges shown. Browser evidence (`apps/web/e2e/review.spec.ts`): save→reload restores the correction; two sessions on corridor-b produce a 409 conflict with the loser preserved; a clean run accepts and the badge shows it; the export verifies via `/api/export/verify`. Integration also fixed a dataset-load race (`loadEpoch` correlation — a superseded openDataset response can no longer overwrite newer state). 17 e2e + 27 vitest green.
 
 ### Notes
 

@@ -76,6 +76,9 @@ export function PropertiesPanel({
   onUndo,
   onRedo,
   onValidate,
+  onSave,
+  onRun,
+  onAccept,
 }: {
   state: WorkbenchState;
   attachFor: (spanId: string, which: Endpoint) => Vec3;
@@ -87,6 +90,9 @@ export function PropertiesPanel({
   onUndo: () => void;
   onRedo: () => void;
   onValidate: (spanId: string) => void;
+  onSave: () => void;
+  onRun: () => void;
+  onAccept: () => void;
 }) {
   const { dataset, diagnostics, selectedSpanId, draft } = state;
   const diag = diagnostics?.spans.find((s) => s.span_id === selectedSpanId);
@@ -95,9 +101,33 @@ export function PropertiesPanel({
   const fit = selectedSpanId ? state.lastFit[selectedSpanId] : null;
   const spanEdits = state.past.filter((e) => e.spanId === selectedSpanId);
 
+  const run = state.run;
+  const canAccept =
+    !!run &&
+    run.state === "succeeded" &&
+    run.input_revision === state.revision &&
+    (run.result?.issue_count ?? 1) === 0 &&
+    !state.accepted;
   return (
     <aside className="props" aria-label="selected span properties">
-      <h2>Span</h2>
+      <h2>
+        Span{" "}
+        <span className="muted" data-testid="revision">
+          rev {state.revision}
+        </span>
+        {state.accepted && (
+          <span className="muted" data-testid="accepted-badge">
+            {" "}
+            accepted (rev {state.accepted.revision})
+          </span>
+        )}
+      </h2>
+      {state.conflict && (
+        <p className="error" role="alert" data-testid="save-conflict">
+          save conflict: server is at revision {state.conflict.current_revision}{" "}
+          — your local edits are preserved, reload to rebase
+        </p>
+      )}
       {!selectedSpanId && <p className="muted">No span selected.</p>}
       {selectedSpanId && pred && span && (
         <>
@@ -173,6 +203,35 @@ export function PropertiesPanel({
               Validate correction
             </button>
           </div>
+          <div className="row">
+            <button
+              data-testid="save-button"
+              onClick={onSave}
+              disabled={!spanEdits.length || !!draft || state.savePending}
+            >
+              {state.savePending ? "Saving…" : "Save"}
+            </button>
+            <button
+              data-testid="run-button"
+              onClick={onRun}
+              disabled={state.runPending}
+            >
+              {state.runPending ? "Running…" : "Run validation"}
+            </button>
+            <button
+              data-testid="accept-button"
+              onClick={onAccept}
+              disabled={!canAccept}
+            >
+              Accept
+            </button>
+          </div>
+          {run && (
+            <p className="muted" data-testid="run-status">
+              run #{run.attempt_id}: {run.state} at rev {run.input_revision}
+              {run.result ? ` — ${run.result.issue_count} issue(s)` : ""}
+            </p>
+          )}
           {state.fitPending && (
             <p className="muted" data-testid="fit-pending">
               refit: running…
@@ -197,8 +256,8 @@ export function PropertiesPanel({
           )}
           {spanEdits.length > 0 && (
             <p className="muted" data-testid="unsaved-note">
-              {spanEdits.length} local edit(s) — unsaved draft (persistence is
-              CAT-009)
+              {spanEdits.length} local edit(s) — unsaved (Save to persist at
+              rev {state.revision + 1})
             </p>
           )}
         </>

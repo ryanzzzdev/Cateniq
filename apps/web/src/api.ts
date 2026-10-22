@@ -98,6 +98,127 @@ export interface RefitResult {
   issue_count: number;
 }
 
+// -- durable review (CAT-009/010) --------------------------------------------
+
+export interface Accepted {
+  revision: number;
+  run_id: number;
+  at: string;
+}
+
+export interface ReviewState {
+  dataset_id: string;
+  manifest_hash: string;
+  revision: number;
+  accepted: Accepted | null;
+  constraints: Record<string, { attach_a: Vec3; attach_b: Vec3 }>;
+}
+
+export interface RunRecord {
+  attempt_id: number;
+  operation_id: string;
+  input_revision: number;
+  algorithm: string;
+  state: "queued" | "running" | "succeeded" | "failed" | "interrupted";
+  stage: string;
+  retry_of: number | null;
+  result: { spans: SpanDiagnostics[]; issue_count: number } | null;
+}
+
+export interface ExportDoc {
+  schema_version: number;
+  dataset: { dataset_id: string; manifest_hash: string };
+  revision: number;
+  operations: unknown[];
+  constraints: ReviewState["constraints"];
+  accepted: Accepted | null;
+  validation: unknown;
+}
+
+export async function fetchReview(id: string): Promise<ReviewState> {
+  const res = await fetch(`/api/datasets/${id}/review`);
+  if (!res.ok) throw new Error(`review ${id} failed: ${res.status}`);
+  return res.json();
+}
+
+export interface SaveConflict {
+  detail: string;
+  current_revision: number;
+}
+
+export async function postOperation(
+  datasetId: string,
+  body: {
+    operation_id: string;
+    base_revision: number;
+    edits: ReviewState["constraints"];
+  },
+): Promise<{ revision: number; replayed: boolean }> {
+  const res = await fetch(`/api/datasets/${datasetId}/review/operations`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 409) {
+    const detail = (await res.json()).detail;
+    const conflict = new Error("save conflict") as Error & {
+      conflict?: SaveConflict | string;
+    };
+    conflict.conflict =
+      typeof detail === "object" ? detail : String(detail ?? "conflict");
+    throw conflict;
+  }
+  if (!res.ok)
+    throw new Error(`save failed: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+export async function postRun(
+  datasetId: string,
+  operationId: string,
+): Promise<{ attempt_id: number; state: string }> {
+  const res = await fetch(`/api/datasets/${datasetId}/review/runs`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ operation_id: operationId }),
+  });
+  if (!res.ok)
+    throw new Error(`run failed: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+export async function fetchRun(
+  datasetId: string,
+  attemptId: number,
+): Promise<RunRecord> {
+  const res = await fetch(
+    `/api/datasets/${datasetId}/review/runs/${attemptId}`,
+  );
+  if (!res.ok) throw new Error(`run ${attemptId} failed: ${res.status}`);
+  return res.json();
+}
+
+export async function postAccept(
+  datasetId: string,
+  revision: number,
+  runId: number,
+): Promise<Accepted> {
+  const res = await fetch(`/api/datasets/${datasetId}/review/accept`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ revision, run_id: runId }),
+  });
+  if (!res.ok)
+    throw new Error(`accept failed: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+export async function fetchExport(id: string): Promise<ExportDoc> {
+  const res = await fetch(`/api/datasets/${id}/review/export`);
+  if (!res.ok) throw new Error(`export ${id} failed: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchHealth(): Promise<{ status: string; service: string }> {
   const res = await fetch("/api/health");
   if (!res.ok) throw new Error(`health failed: ${res.status}`);

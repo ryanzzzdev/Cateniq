@@ -1,7 +1,7 @@
 // Workbench state: selection, in-progress draft, committed local edits and
 // undo/redo. Plain class with subscribers — no store dependency.
 
-import type { Dataset, Diagnostics, Issue, Vec3 } from "./api";
+import type { Accepted, Dataset, Diagnostics, Issue, RunRecord, Vec3 } from "./api";
 import { displacement } from "./interaction";
 
 export type Endpoint = "a" | "b";
@@ -44,6 +44,18 @@ export interface WorkbenchState {
   lastFit: Record<string, FitRecord>;
   /** A constrained-fit request is in flight. */
   fitPending: boolean;
+  /** Authoritative server revision; edits beyond it are local unsaved. */
+  revision: number;
+  /** Saved constraint set — the durable baseline under local edits. */
+  savedEdits: Record<string, { attach_a: Vec3; attach_b: Vec3 }>;
+  /** Acceptance recorded for the current revision (null otherwise). */
+  accepted: Accepted | null;
+  /** A save rejected because another session advanced the revision. */
+  conflict: { detail: string; current_revision: number } | null;
+  savePending: boolean;
+  /** Latest validation run record (durable attempt, not a preview). */
+  run: RunRecord | null;
+  runPending: boolean;
 }
 
 export interface FitRecord {
@@ -79,6 +91,13 @@ const initial: WorkbenchState = {
   editVersion: 0,
   lastFit: {},
   fitPending: false,
+  revision: 0,
+  savedEdits: {},
+  accepted: null,
+  conflict: null,
+  savePending: false,
+  run: null,
+  runPending: false,
 };
 
 /** Effective endpoint in a given state: last committed edit, else the
@@ -91,6 +110,8 @@ function attachForIn(
   const pred = state.dataset?.predictions[spanId];
   if (!pred) throw new Error(`no prediction for ${spanId}`);
   let current: Vec3 = which === "a" ? pred.attach_a : pred.attach_b;
+  const saved = state.savedEdits[spanId];
+  if (saved) current = which === "a" ? saved.attach_a : saved.attach_b;
   for (const e of state.past) {
     if (e.spanId === spanId && e.which === which) current = e.to;
   }
@@ -142,8 +163,18 @@ export class WorkbenchStore {
     });
   }
 
-  setReady(dataset: Dataset, diagnostics: Diagnostics) {
-    this.set({ loadState: "ready", dataset, diagnostics, error: null });
+  setReady(
+    dataset: Dataset,
+    diagnostics: Diagnostics,
+    review?: { revision: number; savedEdits: WorkbenchState["savedEdits"]; accepted: Accepted | null },
+  ) {
+    this.set({
+      loadState: "ready",
+      dataset,
+      diagnostics,
+      error: null,
+      ...(review ?? {}),
+    });
   }
 
   setError(message: string) {
@@ -318,5 +349,60 @@ export class WorkbenchStore {
       fitPending: false,
       lastFit: { ...this.state.lastFit, [spanId]: rec },
     });
+  }
+
+  /** Mark a save request in flight. */
+  beginSave() {
+    this.set({ savePending: true, conflict: null });
+  }
+
+  /** A save was rejected for a stale base — local edits stay untouched so
+   *  the losing session's work remains inspectable. */
+  setConflict(detail: string, current_revision: number) {
+    this.set({
+      savePending: false,
+      conflict: { detail, current_revision },
+    });
+  }
+
+  /** Authoritative review state applied after save or reload: the saved
+   *  constraint set becomes the durable baseline and local `past` (the
+   *  edits that were just saved) clears. */
+  recordSaved(
+    revision: number,
+    savedEdits: WorkbenchState["savedEdits"],
+    accepted: Accepted | null,
+  ) {
+    this.set({
+      savePending: false,
+      conflict: null,
+      revision,
+      savedEdits,
+      accepted,
+      past: [],
+      future: [],
+      editVersion: this.state.editVersion + 1,
+      lastFit: this.refreshFitStaleness({
+        ...this.state,
+        savedEdits,
+        past: [],
+        draft: this.state.draft,
+      }),
+    });
+  }
+
+  /** Mark a validation run request in flight. */
+  beginRun() {
+    this.set({ runPending: true });
+  }
+
+  /** Record a polled/returned run attempt. */
+  recordRun(run: RunRecord | null) {
+    this.set({ runPending: false, run });
+  }
+
+  /** Update acceptance state (after accept or on review refresh). */
+  recordAccepted(accepted: Accepted | null) {
+    this.set({ accepted });
   }
 }
