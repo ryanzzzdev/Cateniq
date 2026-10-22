@@ -1,0 +1,38 @@
+[project]
+name = "cateniq"
+version = "0.1.0"
+description = "Spatial QA workbench backend — geometry, review API and persistence"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.143.1",
+    "numpy==2.5.4",
+    "scipy==1.18.1",
+    "uvicorn==0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.29,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+mypy_path = "src"
+packages = ["cateniq"]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "httpx2==2.13.1",
+    "mypy==2.4.0",
+    "pytest==9.1.1",
+    "ruff==0.17.1",
+]

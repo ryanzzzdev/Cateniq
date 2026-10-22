@@ -8,9 +8,31 @@ Cateniq complements NEMLab's market analysis and Voltix's simulated edge control
 
 ## Development
 
-This repository currently contains the concept and planning baseline. There is no runnable application, installed toolchain, application test result or verified deployment yet. Setup commands will be added when [CAT-003](docs/project/backlog.md#cat-003) verifies them; do not copy sibling-project commands as Cateniq setup.
+Toolchain: uv (Python ≥3.12; locked environment uses 3.14) and Node 22/npm. The API package lives in `backend/`, the browser app in `apps/web/`. Exact dependency versions are locked in `backend/uv.lock` and `apps/web/package-lock.json`.
 
-Planned stack: TypeScript, React, Vite and Three.js in the browser; Python, FastAPI, NumPy/SciPy and SQLite behind a REST API. Exact compatible versions will be selected and locked during development bootstrap.
+```bash
+# Backend: install locked deps, then lint/format/typecheck/test
+cd backend
+uv sync --locked
+uv run ruff check . && uv run ruff format --check .
+uv run mypy
+uv run pytest -q
+
+# Frontend: install locked deps, then typecheck/unit-test/build
+cd apps/web
+npm ci
+npm run typecheck && npm run test && npm run build
+
+# Run locally (two terminals); the Vite dev and preview servers proxy /api to :8000
+cd backend && uv run uvicorn cateniq.app:app --reload --port 8000
+cd apps/web && npm run dev
+
+# Browser smoke: builds the app, serves it, starts the real API, loads the shell in chromium
+cd apps/web && npx playwright install chromium   # once per machine
+npm run test:e2e
+```
+
+Verified on Linux (kernel 7.0), Python 3.14.4, uv 0.11.29, Node 22.23.1, npm 10.9.8, Chromium headless shell 156 via Playwright 1.64.1. A GitHub Actions workflow (`.github/workflows/ci.yml`) runs the same checks; a hosted green run has not been observed yet.
 
 ## Project records
 

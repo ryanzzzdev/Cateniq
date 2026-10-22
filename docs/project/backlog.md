@@ -8,7 +8,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 - ✅ [CAT-001 — Establish project-management standards](#cat-001)
 - ✅ [CAT-002 — Establish the implementation planning baseline](#cat-002)
-- 🟢 [CAT-003 — Bootstrap the minimal development workspace](#cat-003)
+- ✅ [CAT-003 — Bootstrap the minimal development workspace](#cat-003)
 - 🟢 [CAT-004 — Freeze the supported geometry and dataset profile](#cat-004)
 - 📋 [CAT-005 — Build reproducible corridor fixtures](#cat-005)
 - 📋 [CAT-006 — Prototype endpoint inspection and editing](#cat-006)
@@ -22,7 +22,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 ## Delivery notes
 
-Documentation setup and the planning baseline are complete; no application implementation has started. Next: CAT-003 (workspace) and CAT-004 (numerical profile), which can be undertaken independently. Then CAT-005 → CAT-006 closes M1. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
+The verified workspace skeleton (CAT-003) is committed; no geometry or application logic exists yet. Next: CAT-004 (numerical profile). Then CAT-005 → CAT-006 closes M1. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -91,7 +91,7 @@ Next action: CAT-003 and CAT-004; implementation tasks remain unstarted.
 - Area: workspace
 - Milestone: M1
 - Priority: High
-- Status: Ready 🟢
+- Status: Done ✅
 - Depends on: CAT-002
 - References: [Specification](architecture.md)
 
@@ -108,11 +108,15 @@ Create a reproducible browser/API skeleton with a small verified toolchain.
 
 ### Completion evidence
 
-Not started; no implementation or verification evidence yet.
+Versions selected from official registries (PyPI, npm, GitHub API), each published at least 7 days before selection: Python 3.14.4 / uv 0.11.29 with fastapi 0.143.1, uvicorn 0.54.0, numpy 2.5.4, scipy 1.18.1, pytest 9.1.1, ruff 0.17.1, mypy 2.4.0, httpx2 2.13.1; Node 22.23.1 / npm 10.9.8 with react 19.3.1, vite 8.3.4 (8.3.5 was 1 day old), typescript 7.0.2, three 0.186.1, vitest 5.0.5, @playwright/test 1.64.1. Lockfiles committed (`backend/uv.lock`, `apps/web/package-lock.json`).
+
+Created `backend/src/cateniq/app.py` (one `/api/health` endpoint), `apps/web` shell showing live API status, explicit `/api`→`:8000` proxy on both dev and preview servers, `.gitignore`, `.github/workflows/ci.yml` and verified setup commands in README.
+
+All checks pass locally on Linux kernel 7.0: `uv sync --locked`, `ruff check`, `ruff format --check`, `mypy` (strict, clean), `pytest` (1 passed); `npm ci`, `tsc -b`, `vitest run` (2 passed), `vite build`, and Playwright e2e (1 passed) — real Chromium headless shell 156 loaded the shell, reached the real uvicorn process through the preview proxy and observed `api: ok`. No hosted CI run observed yet; workflow committed but not pushed.
 
 ### Notes
 
-Start here for implementation. Do not implement geometry or a full product scaffold in this task.
+Geometry and product scaffold correctly excluded. httpx2 used instead of deprecated httpx test client under starlette 1.9. Next action: CAT-004.
 
 <a id="cat-004"></a>
 

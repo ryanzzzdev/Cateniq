@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# OS/editor
+.DS_Store
+*.swp
+*.tsbuildinfo
