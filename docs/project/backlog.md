@@ -9,8 +9,8 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 - ✅ [CAT-001 — Establish project-management standards](#cat-001)
 - ✅ [CAT-002 — Establish the implementation planning baseline](#cat-002)
 - ✅ [CAT-003 — Bootstrap the minimal development workspace](#cat-003)
-- 🟢 [CAT-004 — Freeze the supported geometry and dataset profile](#cat-004)
-- 📋 [CAT-005 — Build reproducible corridor fixtures](#cat-005)
+- ✅ [CAT-004 — Freeze the supported geometry and dataset profile](#cat-004)
+- 🟢 [CAT-005 — Build reproducible corridor fixtures](#cat-005)
 - 📋 [CAT-006 — Prototype endpoint inspection and editing](#cat-006)
 - 📋 [CAT-007 — Implement fitting and computed diagnostics](#cat-007)
 - 📋 [CAT-008 — Complete the computed correction journey](#cat-008)
@@ -22,7 +22,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 ## Delivery notes
 
-The verified workspace skeleton (CAT-003) is committed; no geometry or application logic exists yet. Next: CAT-004 (numerical profile). Then CAT-005 → CAT-006 closes M1. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
+Workspace skeleton (CAT-003) and the frozen numerical profile (CAT-004) are committed. Next: CAT-005 (fixtures, now Ready) → CAT-006 closes M1. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -126,7 +126,7 @@ Geometry and product scaffold correctly excluded. httpx2 used instead of depreca
 - Area: geometry
 - Milestone: M1
 - Priority: High
-- Status: Ready 🟢
+- Status: Done ✅
 - Depends on: CAT-002
 - References: [Specification](features/datasets-and-geometry.md)
 
@@ -143,11 +143,11 @@ Resolve the mathematical and data contracts before implementing the fitter.
 
 ### Completion evidence
 
-Not started; no implementation or verification evidence yet.
+Profile frozen in `backend/src/cateniq/geometry/profile.py`: span-local (u, v) plane coordinates, vertex-form catenary with `a` in [3, 5000] m, spans 10–120 m, sag/span <= 0.20, evidence gates (>=30 points, coverage >= 0.60, gap <= 0.25 L), RMS <= 0.15 m / p95 <= 0.30 m fit quality, 0.50 m endpoint-mismatch threshold, condition bound 1e10. Independently derived reference cases in `backend/tests/test_geometry_profile.py`: 19 checks pass (equal/unequal heights, vertex-outside-span monotonic, shallow sag, sparse/gapped/low-count rejection, displaced-endpoint detection, wrong-correction RMS failure, absurd correction INFEASIBLE, arc-length quadrature cross-check, parabola boundary). Measured errors sit orders of magnitude inside tolerances; see `docs/project/evidence/geometry-profile.md`. BLK-001 resolved. Local: `uv run pytest` 19+1 pass, `ruff check`/`format`, `mypy` strict all clean.
 
 ### Notes
 
-Can proceed independently of CAT-003. This task owns the numerical gate; no runtime classifier is required.
+A vertex-bracketing gate was tried and dropped — it rejected supported unequal-height (vertex-outside-span) cases; conditioning and a-bounds carry that risk instead. Reference implementation in `catenary.py` validates the profile; CAT-007 hardens it. Next action: CAT-005.
 
 <a id="cat-005"></a>
 
@@ -157,7 +157,7 @@ Can proceed independently of CAT-003. This task owns the numerical gate; no runt
 - Area: geometry
 - Milestone: M1
 - Priority: Normal
-- Status: Backlog 📋
+- Status: Ready 🟢
 - Depends on: CAT-003, CAT-004
 - References: [Specification](features/datasets-and-geometry.md)
 
@@ -177,7 +177,7 @@ Not started; no implementation or verification evidence yet.
 
 ### Notes
 
-Promote to Ready when prerequisites pass; keep generated assets small and reproducible.
+Prerequisites passed 2026-10-22; keep generated assets small and reproducible.
 
 <a id="cat-006"></a>
 

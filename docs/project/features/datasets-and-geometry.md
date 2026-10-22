@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: Initial behavioural baseline. Exact numerical profile is gated by [CAT-004](../backlog.md#cat-004); no geometry implementation exists.
+Status: Numerical profile frozen (CAT-004, [evidence](../evidence/geometry-profile.md)); production fitter not yet implemented.
 
 ## Inputs and output boundary
 
@@ -16,7 +16,16 @@ Separate observation assets, any intentionally corrupted prediction, and referen
 
 Fit conductor geometry from observation points under explicit endpoint constraints. Recompute using the saved human constraint set after a rerun. Do not silently relax a correction to force convergence; return an infeasible or unsupported result with the reason.
 
-CAT-004 must specify parameterisation, plane projection and transforms, endpoint treatment, fit objective, residual units/aggregation, sample-count/coverage requirements, conditioning/convergence checks and numerical tolerances. Validate those choices against independently derived reference cases before treating them as the implementation contract.
+The numerical profile is frozen in `backend/src/cateniq/geometry/profile.py` (the single source of truth for constants) with measured feasibility evidence in [docs/project/evidence/geometry-profile.md](../evidence/geometry-profile.md):
+
+- **Plane coordinates:** span-local `(u, v)`; `u` horizontal along the span's vertical plane from attachment A toward B, `v` = world Z height in metres; a span occupies u ∈ [0, L] for L ∈ [10, 120] m.
+- **Fit model:** `v(u) = v_v + a(cosh((u−u_v)/a) − 1)`, evaluated as `2a·sinh²((u−u_v)/2a)` to avoid cosh−1 cancellation at large `a`. Parameters: vertex `(u_v, v_v)` and catenary constant `a = H/w` ∈ [3, 5000] m. Sag/span ≤ 0.20 — deliberately beyond the parabola regime, so the catenary is the required model.
+- **Free fit:** bounded least squares on vertical residuals; the vertex may lie up to two span lengths beyond the attachments so vertex-outside-span (monotonic) cases converge.
+- **Constrained fit:** endpoints fixed to declared/corrected attachments; `u_v`, `v_v` determined analytically, leaving a bounded scalar minimisation over `a`. Constraints are never relaxed; hitting the `a` bound returns INFEASIBLE.
+- **Evidence gates:** ≥30 points, observed extent ≥ 0.60·L, largest gap ≤ 0.25·L — otherwise INSUFFICIENT_EVIDENCE, distinct from a FAILED or OK fit.
+- **Fit quality:** vertical residuals in metres; RMS ≤ 0.15 m and p95 ≤ 0.30 m required to pass validation.
+- **Endpoint check:** |fitted v(u_attach) − v_attach| > 0.50 m raises an endpoint-mismatch diagnostic.
+- **Solver hygiene:** Jacobian condition > 1e10 reports FAILED/unstable; solver failure reports FAILED. Fit statuses: `ok`, `insufficient_evidence`, `failed`, `infeasible`.
 
 Diagnostics are computed from observations and predicted geometry: residual summaries, supporting-point coverage and endpoint/support consistency where the evidence allows. Each issue includes affected entity, measurement, configured threshold, input/run revision and an actionable explanation. Unsupported evidence is distinct from a failed fit and from a model that passes configured checks. Avoid uncalibrated probability/confidence labels.
 

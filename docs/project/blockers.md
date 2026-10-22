@@ -9,14 +9,14 @@ These are scoped implementation gates, not evidence that the project is currentl
 ## BLK-001 — Numerical profile and independent validation
 
 - Identified: 2026-10-22
-- Status: Open
+- Status: Resolved (2026-10-22)
 - Affected tasks/milestones: [CAT-004](backlog.md#cat-004), CAT-005, CAT-007; M1/M2.
 - Question: Which bounded catenary parameterisation and residual/support checks reliably distinguish the initial endpoint-error scenario from sparse or unsupported evidence?
 - Impact: No numerical implementation can be called correct until units, constraints, conditioning checks and error tolerances are specified and independently evaluated.
 - Blocking scope: Gates dependent fixture/fitter acceptance, not workspace bootstrap or the profile investigation itself.
 - Evidence: The concept proposes catenary geometry; no numerical code or benchmark exists. This is a planning gate, not a failed solver attempt.
 - Next action / owner: Implementing agent completes CAT-004 using primary mathematical references and hand-checkable/independently derived fixtures; freeze the supported domain and limitations.
-- Resolution: Pending.
+- Resolution: Profile frozen in `backend/src/cateniq/geometry/profile.py` (vertex-form catenary, a in [3, 5000] m, spans 10–120 m, sag/span <= 0.20, evidence gates and tolerances). Feasibility validated by 19 independently derived reference checks; measured errors sit orders of magnitude inside the frozen tolerances. See `docs/project/evidence/geometry-profile.md`; vertex-bracketing gate was dropped after it rejected a supported unequal-height case.
 
 <a id="blk-002"></a>
 
