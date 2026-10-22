@@ -1,6 +1,6 @@
 # Cateniq roadmap
 
-Updated: 2026-10-22
+Updated: 2026-10-23
 
 Build a reproducible spatial review workflow, not a full digital-twin platform. Scope: [decision 002](decisions/002-scope-and-stack.md). Task status belongs in the [backlog](backlog.md). No calendar delivery dates are committed; reassess effort at the M1 exit.
 
@@ -13,7 +13,7 @@ Build a reproducible spatial review workflow, not a full digital-twin platform. 
 | M3 — Durable review | Versioned save, recovery, conflict handling and provenance | Planned | M2 |
 | M4 — Verified portfolio demo | Reproducible delivery, performance/failure evidence and presentation | Planned | M3 |
 
-Setup and planning completion refer to documents: [CAT-001](backlog.md#cat-001), [CAT-002](backlog.md#cat-002). M1 delivered a verified workspace, the frozen numerical profile, reproducible fixtures and a measured endpoint-editing prototype — M2 adds the production fitter and computed correction journey.
+Setup and planning completion refer to documents: [CAT-001](backlog.md#cat-001), [CAT-002](backlog.md#cat-002). M1 delivered the workspace, numerical profile, fixtures and endpoint prototype. The [independent exit review](evidence/m1-exit-review.md) reopened CAT-006 for ambiguous/occluded interaction verification and resource observations; both gaps were closed and re-verified 2026-10-23. M2 adds production fitting and hardens the computed correction journey.
 
 ## M1 — Evidence and interaction
 

@@ -9,6 +9,8 @@ Not committed — generated on demand so the repo stays small:
 import sys
 from pathlib import Path
 
+from generate_corridor import SPECS
+
 from cateniq.datasets.gen import DatasetSpec, PoleSpec, SpanSpec, generate_dataset
 
 STD = (("high", 12.0), ("mid", 10.5), ("low", 8.5))
@@ -33,8 +35,9 @@ CORRIDOR_PERF = DatasetSpec(
 
 def main() -> int:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".perf-fixtures")
-    root = generate_dataset(out, CORRIDOR_PERF)
-    print(f"wrote {root}")
+    for spec in (*SPECS, CORRIDOR_PERF):
+        root = generate_dataset(out, spec)
+        print(f"wrote {root}")
     return 0
 
 

@@ -7,9 +7,11 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { Dataset, PointColumns, Vec3 } from "./api";
 import {
   catenaryWorldPoints,
+  classifyHits,
   rayPlanePoint,
   snapToCandidate,
   spanPlane,
+  type RawHit,
 } from "./interaction";
 import type { Draft } from "./store";
 
@@ -72,6 +74,7 @@ export class CorridorScene {
   private dataset: Dataset | null = null;
   datasetId: string | null = null;
   private rafId = 0;
+  private resizeObserver: ResizeObserver | null = null;
   private frameTimes: number[] = [];
   private lastFrame = 0;
 
@@ -118,7 +121,8 @@ export class CorridorScene {
     this.scene.add(this.snapMarker);
 
     this.resize();
-    new ResizeObserver(() => this.resize()).observe(container);
+    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver.observe(container);
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
       this.pointerDown(e),
     );
@@ -189,6 +193,10 @@ export class CorridorScene {
     for (const s of this.spans.values()) {
       objs.push(s.handleA, s.handleB, s.curve, s.points);
     }
+    for (const m of this.candidateMeshes) {
+      if (m.userData.blocker) objs.push(m);
+    }
+    if (this.contextPoints) objs.push(this.contextPoints);
     return objs;
   }
 
@@ -197,17 +205,28 @@ export class CorridorScene {
     this.pointerRay(e); // positions the raycaster from the pointer
     this.raycaster.params.Points = { threshold: 0.35 };
     const hits = this.raycaster.intersectObjects(this.pickables(), false);
-    const hit = hits.find((h) => h.object.visible)?.object;
-    if (hit instanceof THREE.Mesh && hit.userData.type === "handle") {
-      const { spanId, which } = hit.userData;
-      this.beginDrag(spanId, which, e);
+    const raw: RawHit[] = hits.map((h) => {
+      const u = h.object.userData;
+      const type = u.blocker
+        ? "blocker"
+        : u.type === "handle"
+          ? "handle"
+          : h.object instanceof THREE.Points
+            ? "points"
+            : "curve";
+      return {
+        type,
+        visible: h.object.visible,
+        spanId: u.spanId,
+        which: u.which,
+      };
+    });
+    const pick = classifyHits(raw);
+    if (pick.kind === "handle") {
+      this.beginDrag(pick.spanId!, pick.which!, e);
       return;
     }
-    if (hit && hit.userData.spanId) {
-      this.onPick({ kind: "span", spanId: hit.userData.spanId });
-    } else {
-      this.onPick({ kind: "none" });
-    }
+    this.onPick(pick);
   }
 
   private beginDrag(spanId: string, which: "a" | "b", e: PointerEvent) {
@@ -326,6 +345,7 @@ export class CorridorScene {
         g,
         new THREE.PointsMaterial({ color: 0x546e7a, size: 0.18 }),
       );
+      this.contextPoints.userData.blocker = true;
       this.scene.add(this.contextPoints);
     }
 
@@ -344,7 +364,9 @@ export class CorridorScene {
         new THREE.CylinderGeometry(0.25, 0.3, 1, 8),
         new THREE.MeshBasicMaterial({ color: 0x455a64 }),
       );
+      post.userData.blocker = true;
       const maxZ = Math.max(...pole.attachment_candidates.map((c) => c.point[2]));
+      post.rotation.x = Math.PI / 2; // cylinder axis is +y; stand it up along +z
       post.scale.y = maxZ;
       post.position.set(pole.position[0], pole.position[1], maxZ / 2);
       this.scene.add(post);
@@ -353,14 +375,48 @@ export class CorridorScene {
   }
 
   private clearData() {
+    const kill = (o: THREE.Object3D) => {
+      this.scene.remove(o);
+      const m = o as THREE.Mesh | THREE.Points | THREE.Line;
+      if (m.geometry) m.geometry.dispose();
+      const mat = (m as THREE.Mesh).material as THREE.Material | undefined;
+      if (mat) mat.dispose();
+    };
     for (const s of this.spans.values()) {
-      this.scene.remove(s.points, s.curve, s.draftCurve, s.handleA, s.handleB);
+      kill(s.points);
+      kill(s.curve);
+      kill(s.draftCurve);
+      kill(s.handleA);
+      kill(s.handleB);
     }
     this.spans.clear();
-    if (this.contextPoints) this.scene.remove(this.contextPoints);
+    if (this.contextPoints) kill(this.contextPoints);
     this.contextPoints = null;
-    for (const m of this.candidateMeshes) this.scene.remove(m);
+    for (const m of this.candidateMeshes) kill(m);
     this.candidateMeshes = [];
+  }
+
+  /** Render resource counters (for tests/measurement). */
+  resourceStats(): {
+    geometries: number;
+    textures: number;
+    calls: number;
+    triangles: number;
+  } {
+    const i = this.renderer.info;
+    return {
+      geometries: i.memory.geometries,
+      textures: i.memory.textures,
+      calls: i.render.calls,
+      triangles: i.render.triangles,
+    };
+  }
+
+  /** Move the camera (test/measurement hook for controlled viewpoints). */
+  setCamera(position: Vec3, target: Vec3) {
+    this.camera.position.set(...position);
+    this.controls.target.set(...target);
+    this.controls.update();
   }
 
   setSelected(spanId: string | null) {
@@ -434,6 +490,7 @@ export class CorridorScene {
 
   dispose() {
     cancelAnimationFrame(this.rafId);
+    this.resizeObserver?.disconnect();
     this.clearData();
     this.controls.dispose();
     this.renderer.dispose();

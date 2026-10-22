@@ -101,3 +101,31 @@ export function catenaryWorldPoints(
 export function displacement(from: Vec3, to: Vec3): number {
   return Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
 }
+
+// Pick classification: ordered hits (nearest first) → what the click means.
+// Poles/context/candidates are blockers — an occluded target must not be
+// grabbed "through" them; invisible hits are skipped entirely.
+
+export type PickKind =
+  | { kind: "handle"; spanId: string; which: "a" | "b" }
+  | { kind: "span"; spanId: string }
+  | { kind: "none" };
+
+export interface RawHit {
+  type: "handle" | "curve" | "points" | "blocker";
+  visible: boolean;
+  spanId?: string;
+  which?: "a" | "b";
+}
+
+export function classifyHits(hits: RawHit[]): PickKind {
+  const hit = hits.find((h) => h.visible);
+  if (!hit) return { kind: "none" };
+  if (hit.type === "handle" && hit.spanId && hit.which) {
+    return { kind: "handle", spanId: hit.spanId, which: hit.which };
+  }
+  if (hit.type === "curve" || hit.type === "points") {
+    return hit.spanId ? { kind: "span", spanId: hit.spanId } : { kind: "none" };
+  }
+  return { kind: "none" };
+}

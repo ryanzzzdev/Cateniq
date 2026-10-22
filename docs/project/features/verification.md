@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: Planned checks only. No application checks have run.
+Status: M1 application checks have run and were independently reproduced; see [M1 exit review](../evidence/m1-exit-review.md) for results and outstanding interaction/resource evidence. Later milestone acceptance remains planned.
 
 ## Evidence standard
 

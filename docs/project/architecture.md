@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: Initial design selected under delegated planning authority; not implemented or verified. See [decision 002](decisions/002-scope-and-stack.md) and the [implementation gates](blockers.md).
+Status: M1 workspace, fixtures, reference geometry and endpoint prototype implemented; existing checks reproduced. Interaction/resource evidence gaps remain in the [M1 review](evidence/m1-exit-review.md). Production fitting and durable review remain M2/M3 design. See [decision 002](decisions/002-scope-and-stack.md) and the [implementation gates](blockers.md).
 
 ## Scope and boundaries
 

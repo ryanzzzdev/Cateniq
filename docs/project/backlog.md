@@ -1,6 +1,6 @@
 # Cateniq backlog
 
-Updated: 2026-10-22
+Updated: 2026-10-23
 
 Task bodies own status; index icons mirror them. Follow the [documentation guide](documentation-guide.md#task-records).
 
@@ -22,7 +22,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 ## Delivery notes
 
-Workspace (CAT-003), frozen profile (CAT-004), fixtures (CAT-005) and the measured endpoint prototype (CAT-006) are committed — M1 evidence complete. Next: M1 exit review, then CAT-007 fitting/diagnostics opens M2. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
+Workspace, profile, fixtures and endpoint prototype are committed; the reopened CAT-006 evidence gaps are closed (see [M1 review](evidence/m1-exit-review.md)). M1 complete → CAT-007 opens M2. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -189,7 +189,7 @@ Three seeded datasets (demo, held-out, adverse). Fitter-facing loading never rea
 - Priority: Normal
 - Status: Done ✅
 - Depends on: CAT-005
-- References: [Specification](features/workbench.md), [Evidence](../evidence/endpoint-interaction.md)
+- References: [Specification](features/workbench.md), [Evidence](evidence/endpoint-interaction.md)
 
 ### Outcome
 
@@ -206,9 +206,13 @@ Prove one endpoint interaction is usable before building a broad editor.
 
 2026-10-22: 17 vitest unit checks, 5 Playwright journey checks (correction journey incl. computed diagnostic → numeric/drag edit → commit → constrained refit → undo/redo, cancel, no-hit safety) and a 100,200-point perf run all pass; measured numbers and frozen budgets in [evidence/endpoint-interaction.md](evidence/endpoint-interaction.md). BLK-002 resolved. Committed alongside the implementation.
 
+2026-10-23 independent review: existing checks and timing budgets pass, but ambiguous/occluded views and resource observations are not evidenced. Reopened; see [M1 exit review](evidence/m1-exit-review.md).
+
+2026-10-23 follow-up: co-located-handle ambiguity and bird's-eye occlusion now e2e-verified; pick ordering unit-tested via `classifyHits`; resource observations recorded (flat 20 MB heap, identical 91-object rebuild across two round-trips). Bugs the new checks exposed and fixed: horizontal pole-post orientation, occluders missing from the pick set, undisposed scene resources. Frame budget re-frozen p50 ≤50 ms / p95 ≤150 ms after later runs falsified p95 ≤50 ms.
+
 ### Notes
 
-Prototype scope; no brush, pole editing, persistence or general CAD toolset. Local edits are client-side drafts — durable revisions are CAT-009. Next action: M1 exit review, then CAT-007.
+Prototype scope; no brush, pole editing, persistence or general CAD toolset. Local edits are client-side drafts — durable revisions are CAT-009. Next action: M1 exit review confirmed; CAT-007 opens M2.
 
 <a id="cat-007"></a>
 
@@ -218,7 +222,7 @@ Prototype scope; no brush, pole editing, persistence or general CAD toolset. Loc
 - Area: geometry
 - Milestone: M2
 - Priority: Normal
-- Status: Ready 🟢
+- Status: Backlog 📋
 - Depends on: CAT-005, CAT-006
 - References: [Specification](features/datasets-and-geometry.md)
 
@@ -235,7 +239,7 @@ Produce genuine fitting and validation results from evidence and human constrain
 
 ### Completion evidence
 
-Not started; no implementation or verification evidence yet.
+Production hardening not started; reference fitting and prototype diagnostics exist. See [review handoff](evidence/m1-exit-review.md#m2-handoff-notes-not-additional-m1-scope) for domain enforcement, provenance and independent-test follow-up.
 
 ### Notes
 

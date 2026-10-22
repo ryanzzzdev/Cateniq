@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   catenaryWorldPoints,
+  classifyHits,
   displacement,
   rayPlanePoint,
   snapToCandidate,
   spanPlane,
+  type RawHit,
 } from "./interaction";
 
 const A: [number, number, number] = [50, 0, 12];
@@ -78,5 +80,44 @@ describe("catenary helpers", () => {
   it("displacement measures 3D distance", () => {
     expect(displacement([0, 0, 0], [0, 0, 1.5])).toBeCloseTo(1.5);
     expect(displacement([0, 0, 0], [3, 4, 0])).toBeCloseTo(5);
+  });
+});
+
+describe("classifyHits — pick ordering", () => {
+  const H = (spanId: string, which: "a" | "b"): RawHit => ({
+    type: "handle",
+    visible: true,
+    spanId,
+    which,
+  });
+  const P: RawHit = { type: "points", visible: true, spanId: "S1" };
+  const B: RawHit = { type: "blocker", visible: true };
+
+  it("nearest handle wins a drag", () => {
+    expect(classifyHits([H("S2", "b"), P])).toEqual({
+      kind: "handle",
+      spanId: "S2",
+      which: "b",
+    });
+  });
+
+  it("a blocker in front prevents grabbing through the occluder", () => {
+    expect(classifyHits([B, H("S2", "b")])).toEqual({ kind: "none" });
+  });
+
+  it("an invisible hit is skipped, not treated as a hit", () => {
+    const ghost: RawHit = { type: "handle", visible: false, spanId: "S1", which: "b" };
+    expect(classifyHits([ghost, P])).toEqual({ kind: "span", spanId: "S1" });
+  });
+
+  it("span geometry selects the span", () => {
+    expect(
+      classifyHits([{ type: "curve", visible: true, spanId: "S3" }]),
+    ).toEqual({ kind: "span", spanId: "S3" });
+  });
+
+  it("no hits or only blockers → none (nothing moves)", () => {
+    expect(classifyHits([])).toEqual({ kind: "none" });
+    expect(classifyHits([B])).toEqual({ kind: "none" });
   });
 });
