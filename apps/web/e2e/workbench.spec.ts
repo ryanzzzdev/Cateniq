@@ -96,6 +96,87 @@ test("insufficient-evidence spans stay unresolved through the real API", async (
   );
 });
 
+test("a converged correction that fails quality gates shows its issues", async ({
+  page,
+}) => {
+  await loadCorridorA(page);
+  await selectS2(page);
+  // In-plane but wrong: b z 10.5 → 13.5 converges (status ok) yet leaves
+  // the curve ~0.5 m off the evidence — validation issues must surface.
+  const zInput = page.getByTestId("coord-b-2");
+  await zInput.click();
+  await zInput.fill("13.5");
+  await page.getByRole("button", { name: "Commit" }).click();
+  await page.getByRole("button", { name: "Validate correction" }).click();
+  await expect(page.getByTestId("fit-result")).toContainText("refit: ok");
+  await expect(page.getByTestId("fit-result")).toContainText(
+    "high_residual",
+  );
+});
+
+test("a correction the evidence does not support is rejected", async ({
+  page,
+}) => {
+  await loadCorridorA(page);
+  await selectS2(page);
+  // Move b 10 m laterally: the corrected plane no longer passes through
+  // the observations — reported unsupported, not fitted.
+  const yInput = page.getByTestId("coord-b-1");
+  await yInput.click();
+  await yInput.fill("10");
+  await page.getByRole("button", { name: "Commit" }).click();
+  await page.getByRole("button", { name: "Validate correction" }).click();
+  await expect(page.getByTestId("fit-result")).toContainText("unsupported");
+  await expect(page.getByTestId("fit-result")).toContainText("lateral rms");
+  await expect(page.getByTestId("unsaved-note")).toContainText("1 local edit");
+});
+
+test("a late response for a cancelled draft arrives flagged stale", async ({
+  page,
+}) => {
+  // Hold the real API response so the draft can be cancelled mid-flight.
+  let release!: () => void;
+  const held = new Promise<void>((r) => {
+    release = r;
+  });
+  await page.route("**/fit", async (route) => {
+    const response = await route.fetch();
+    await held;
+    await route.fulfill({ response });
+  });
+  await loadCorridorA(page);
+  await selectS2(page);
+  const zInput = page.getByTestId("coord-b-2");
+  await zInput.click();
+  await zInput.fill("12"); // draft inputs: what the request is computed for
+  await page.getByRole("button", { name: "Validate correction" }).click();
+  await page.keyboard.press("Escape"); // cancel: inputs revert to 10.5
+  await expect(page.getByTestId("coord-b-2")).toHaveValue("10.50");
+  release();
+  // The result computed for z=12 must not present as current at z=10.5.
+  await expect(page.getByTestId("fit-result")).toContainText("stale");
+});
+
+test("a shown result flags stale during editing and recovers on cancel", async ({
+  page,
+}) => {
+  await loadCorridorA(page);
+  await selectS2(page);
+  const zInput = page.getByTestId("coord-b-2");
+  await zInput.click();
+  await zInput.fill("12");
+  await page.getByRole("button", { name: "Commit" }).click();
+  await page.getByRole("button", { name: "Validate correction" }).click();
+  await expect(page.getByTestId("fit-result")).toContainText("refit: ok");
+  // Editing again must flag the visible result immediately — not on commit.
+  await zInput.click();
+  await zInput.fill("13");
+  await expect(page.getByTestId("fit-result")).toContainText("stale");
+  // Cancelling reverts to the inputs the result was computed for.
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("fit-result")).not.toContainText("stale");
+});
+
 test("cancel restores the pre-draft endpoint", async ({ page }) => {
   await loadCorridorA(page);
   await selectS2(page);

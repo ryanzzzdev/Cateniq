@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Dataset } from "./api";
+import type { Dataset, Vec3 } from "./api";
 import { WorkbenchStore } from "./store";
 
 function fakeDataset(): Dataset {
@@ -91,38 +91,91 @@ describe("workbench store", () => {
     expect(s.get().selectedSpanId).toBeNull();
   });
 
+  function fitFor(a: Vec3, b: Vec3) {
+    return {
+      fit: {
+        status: "ok",
+        basis: "corrected",
+        rms: 0.03,
+        reason: null,
+        curve: null,
+        issues: [],
+        lateralRms: null,
+      },
+      a,
+      b,
+    };
+  }
+  const A: Vec3 = [50, 0, 12];
+  const B_PRED: Vec3 = [95, 0, 10.5];
+  const B_EDIT: Vec3 = [95, 0, 12];
+
   it("recorded fits go stale when the span is edited again", () => {
     const s = readyStore();
-    const fit = { status: "ok", basis: "corrected", rms: 0.03, reason: null, curve: null };
-    s.recordFit("S2", fit, s.get().editVersion);
+    const f = fitFor(A, B_PRED);
+    s.recordFit("S2", f.fit, s.get().editVersion, f.a, f.b);
     s.beginDraft("S2", "b");
-    s.moveDraft([95, 0, 12]);
+    s.moveDraft(B_EDIT);
     s.commitDraft();
     expect(s.get().lastFit["S2"].stale).toBe(true);
-    s.recordFit("S2", fit, s.get().editVersion);
+    const f2 = fitFor(A, B_EDIT);
+    s.recordFit("S2", f2.fit, s.get().editVersion, f2.a, f2.b);
     expect(s.get().lastFit["S2"].stale).toBe(false);
     s.undo();
     expect(s.get().lastFit["S2"].stale).toBe(true);
   });
 
+  it("draft movement flags an already-recorded fit before commit", () => {
+    const s = readyStore();
+    const f = fitFor(A, B_PRED);
+    s.recordFit("S2", f.fit, s.get().editVersion, f.a, f.b);
+    s.beginDraft("S2", "b");
+    s.moveDraft(B_EDIT);
+    expect(s.get().lastFit["S2"].stale).toBe(true);
+  });
+
+  it("cancelling a moved draft invalidates an in-flight result", () => {
+    const s = readyStore();
+    s.beginDraft("S2", "b");
+    s.moveDraft(B_EDIT);
+    const requestedAt = s.get().editVersion; // request sent at draft inputs
+    s.cancelDraft(); // inputs revert to the prediction
+    const f = fitFor(A, B_EDIT);
+    s.recordFit("S2", f.fit, requestedAt, f.a, f.b);
+    expect(s.get().lastFit["S2"].stale).toBe(true);
+  });
+
+  it("cancel restores a recorded fit whose inputs it reverts to", () => {
+    const s = readyStore();
+    const f = fitFor(A, B_PRED);
+    s.recordFit("S2", f.fit, s.get().editVersion, f.a, f.b);
+    s.beginDraft("S2", "b");
+    s.moveDraft(B_EDIT);
+    expect(s.get().lastFit["S2"].stale).toBe(true);
+    s.cancelDraft(); // back to the inputs the fit was computed for
+    expect(s.get().lastFit["S2"].stale).toBe(false);
+  });
+
   it("a fit response for an older edit version arrives stale", () => {
     const s = readyStore();
-    const fit = { status: "ok", basis: "corrected", rms: 0.03, reason: null, curve: null };
+    const f = fitFor(A, B_PRED);
     const requestedAt = s.get().editVersion;
     // Edits land while the request is in flight.
     s.beginDraft("S2", "b");
-    s.moveDraft([95, 0, 12]);
+    s.moveDraft(B_EDIT);
     s.commitDraft();
-    s.recordFit("S2", fit, requestedAt);
+    s.recordFit("S2", f.fit, requestedAt, f.a, f.b);
     expect(s.get().lastFit["S2"].stale).toBe(true);
   });
 
   it("a late response cannot replace a newer result", () => {
     const s = readyStore();
-    const old = { status: "ok", basis: "corrected", rms: 0.03, reason: null, curve: null };
-    const newer = { status: "infeasible", basis: "corrected", rms: 0.8, reason: "bound", curve: null };
-    s.recordFit("S2", newer, 5);
-    s.recordFit("S2", old, 3); // out-of-order arrival for an older version
+    const old = fitFor(A, B_PRED);
+    const newer = fitFor(A, B_EDIT);
+    newer.fit.status = "infeasible";
+    newer.fit.rms = 0.8;
+    s.recordFit("S2", newer.fit, 5, newer.a, newer.b);
+    s.recordFit("S2", old.fit, 3, old.a, old.b);
     expect(s.get().lastFit["S2"].status).toBe("infeasible");
     expect(s.get().lastFit["S2"].version).toBe(5);
   });

@@ -23,7 +23,9 @@ from cateniq.geometry.catenary import (
 )
 from cateniq.geometry.profile import (
     A_MAX,
+    LATERAL_TOLERANCE_M,
     MAX_SAG_FRACTION,
+    RMS_MAX_M,
     Attachments,
     FitStatus,
 )
@@ -129,8 +131,9 @@ def client() -> TestClient:
 
 class TestConstrainedFitService:
     def test_off_plane_correction_reports_provenance(self, client: TestClient) -> None:
-        """A lateral (off predicted-plane) correction redefines the refit
-        plane; the measured offset is reported, not silently discarded."""
+        """An off predicted-plane correction is measured as provenance; when
+        it leaves the plane unsupported by evidence it is rejected, and the
+        rejection still carries the measured offsets."""
         ds = client.get("/api/datasets/corridor-a").json()
         pred = ds["predictions"]["S2"]
         moved = [
@@ -149,10 +152,42 @@ class TestConstrainedFitService:
         body = res.json()
         c = body["constraints"]
         assert body["basis"] == "corrected"
+        assert body["status"] == "unsupported"
+        assert "LATERAL_TOLERANCE_M" in body["reason"]
         assert c["attach_b"] == moved
         assert c["off_plane_m"][0] == pytest.approx(0.0, abs=1e-6)
         assert abs(c["off_plane_m"][1]) == pytest.approx(2.0, abs=0.01)
-        assert c["obs_lateral_rms_m"] >= 0.0
+        assert c["obs_lateral_rms_m"] > LATERAL_TOLERANCE_M
+        assert body["issues"][0]["kind"] == "unsupported_domain"
+
+    def test_wrong_but_convergent_correction_fails_validation(
+        self, client: TestClient
+    ) -> None:
+        """A corrected fit can converge yet violate the quality gates — the
+        solver status stays ok but validation issues must be reported, not
+        silently accepted."""
+        ds = client.get("/api/datasets/corridor-a").json()
+        pred = ds["predictions"]["S2"]
+        # z = 13.5 is in-plane but wrong: the constrained curve sits ~0.5 m
+        # above the observations near the end of the span.
+        moved = [
+            pred["attach_b"][0],
+            pred["attach_b"][1],
+            pred["attach_b"][2] + 3.0,
+        ]
+        body = client.post(
+            "/api/datasets/corridor-a/fit",
+            json={
+                "span_id": "S2",
+                "attach_a": pred["attach_a"],
+                "attach_b": moved,
+            },
+        ).json()
+        assert body["status"] == "ok"  # solver converged on the constraint
+        assert body["rms"] > RMS_MAX_M
+        kinds = {i["kind"] for i in body["issues"]}
+        assert "high_residual" in kinds
+        assert "high_residual_p95" in kinds
 
     def test_degenerate_correction_unsupported(self, client: TestClient) -> None:
         ds = client.get("/api/datasets/corridor-a").json()
@@ -221,3 +256,37 @@ class TestCorridorRefit:
         spans = {s["span_id"]: s for s in res.json()["spans"]}
         assert spans["A1"]["status"] == "insufficient_evidence"
         assert spans["A2"]["status"] == "insufficient_evidence"
+
+    def test_refit_counts_issues_on_corrected_spans(self, client: TestClient) -> None:
+        """Corrected spans contribute issues to the corridor count — a wrong
+        correction and an unchanged failing span must not vanish."""
+        ds = client.get("/api/datasets/corridor-a").json()
+        pred = ds["predictions"]["S2"]
+        s4 = ds["predictions"]["S4"]
+        body = client.post(
+            "/api/datasets/corridor-a/refit",
+            json={
+                "edits": {
+                    # In-plane but wrong height: converges, fails quality gates.
+                    "S2": {
+                        "attach_a": pred["attach_a"],
+                        "attach_b": [
+                            pred["attach_b"][0],
+                            pred["attach_b"][1],
+                            pred["attach_b"][2] + 3.0,
+                        ],
+                    },
+                    # S4 unchanged: its high_residual must survive the rerun.
+                    "S4": {
+                        "attach_a": s4["attach_a"],
+                        "attach_b": s4["attach_b"],
+                    },
+                }
+            },
+        ).json()
+        spans = {s["span_id"]: s for s in body["spans"]}
+        s2_kinds = {i["kind"] for i in spans["S2"]["issues"]}
+        assert "high_residual" in s2_kinds
+        s4_kinds = {i["kind"] for i in spans["S4"]["issues"]}
+        assert s4_kinds  # unresolved issues preserved under corrected basis
+        assert body["issue_count"] == sum(len(s["issues"]) for s in body["spans"])

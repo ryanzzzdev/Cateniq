@@ -22,7 +22,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 
 ## Delivery notes
 
-Workspace, profile, fixtures and endpoint prototype are committed. The second follow-up review's verification findings are closed (discriminating occlusion regression, workload-isolated timing); M1 is complete — see [M1 review](evidence/m1-exit-review.md). CAT-007 opens M2. Later work remains Backlog until dependencies pass and the task is refined for execution. Keep the active set small. Next unused ID: CAT-014.
+M1 and M2 review findings verified resolved. CAT-009 opens M3; durable revisions remain the next gate. Later work remains Backlog. Next unused ID: CAT-014.
 
 <a id="cat-001"></a>
 
@@ -245,6 +245,10 @@ Produce genuine fitting and validation results from evidence and human constrain
 
 2026-10-23: UNSUPPORTED status + domain gates (span length, degenerate endpoints, sag/span>0.2), constrained-refit plane re-derived from corrected endpoints (no silent projection; off-plane offset reported as provenance), basis/units provenance on all results, corridor-level `POST /refit`. 13 new production-fit tests incl. independent cosh-form generator. See [evidence](evidence/fitting-diagnostics.md).
 
+2026-10-23 independent review at `ad06a83`: reopened for corrected-fit quality diagnostics and lateral/support validation. Reproductions and passing baseline checks: [M2 exit review](evidence/m2-exit-review.md).
+
+2026-10-23 review findings resolved: the shared `_issues` gate now applies the frozen RMS/p95 quality checks to corrected as well as prediction results (solver convergence stays distinct from validation), corrected spans contribute issues to the corridor `issue_count`, and the corrected plane must be supported by the evidence — lateral observation RMS above `LATERAL_TOLERANCE_M` (0.5 m) is rejected `unsupported` with the measured value reported, not fitted through. Browser shows fit issues and the lateral metric. New regressions: wrong-but-convergent correction (converges, fails gates), 10 m lateral rejection through the API, corridor rerun preserving S4's unresolved issues; e2e for convergent-with-issues and lateral rejection. 54 pytest + 27 vitest + 12 browser specs green.
+
 ### Notes
 
 Use the full rebuild as the baseline; incremental updates are excluded.
@@ -275,6 +279,10 @@ Connect diagnostics, reversible editing and refitting through the real API.
 ### Completion evidence
 
 2026-10-23: Request/response correlation implemented — `editVersion` captured at request time, late responses flagged stale (`recordFit` version check, responses never replace newer results), constraint echo verified against submitted attachments, dataset-switch discards in-flight results. New e2e: infeasible correction reported honestly; adverse dataset stays `insufficient_evidence` post-edit. 24 vitest + 9 browser specs green.
+
+2026-10-23 independent review at `ad06a83`: reopened for draft cancellation and movement invalidation. Reproductions and passing baseline checks: [M2 exit review](evidence/m2-exit-review.md).
+
+2026-10-23 review findings resolved: staleness is now judged against the effective input snapshot, not the version alone — `FitRecord` stores the submitted attachments and every mutation (`moveDraft`, `commitDraft`, `cancelDraft`, `undo`, `redo`) recomputes each record's flag, so a moved draft flags a shown result immediately, cancelling a moved draft advances `editVersion` (late responses for draft inputs arrive stale), and a cancel that reverts to recorded inputs restores the result. New regressions: store tests for move/cancel invalidation and revert-recovery; e2e route-delayed cancel response flagged stale, and visible-result stale-on-edit / recover-on-cancel. 54 pytest + 27 vitest + 12 browser specs green.
 
 ### Notes
 

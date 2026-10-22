@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: M1 workspace, fixtures, reference geometry and endpoint prototype implemented; existing checks reproduced. Interaction/resource evidence gaps remain in the [M1 review](evidence/m1-exit-review.md). Production fitting and durable review remain M2/M3 design. See [decision 002](decisions/002-scope-and-stack.md) and the [implementation gates](blockers.md).
+Status: M1 workspace, fixtures, reference geometry and endpoint prototype implemented; existing checks reproduced. Prior M1 evidence gaps and M2 review findings are resolved with regression coverage (see [M2 review](evidence/m2-exit-review.md)); durable review remains M3 design. See [decision 002](decisions/002-scope-and-stack.md) and the [implementation gates](blockers.md).
 
 ## Scope and boundaries
 

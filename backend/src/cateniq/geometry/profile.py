@@ -52,6 +52,12 @@ RESIDUAL_P95_MAX_M: float = 0.30  # 95th-percentile absolute residual ceiling
 # |fitted endpoint height - declared attachment| above which an endpoint
 # mismatch diagnostic is raised.
 ENDPOINT_TOLERANCE_M: float = 0.50
+# RMS of observation lateral offsets about a corrected refit plane. A
+# correction may define its own vertical plane, but that plane must still be
+# supported by the evidence: beyond this tolerance the corrected plane does
+# not pass through the observations and the correction is UNSUPPORTED
+# (non-coplanar cases are rejected, never silently fitted).
+LATERAL_TOLERANCE_M: float = 0.50
 # Jacobian condition number above which a successful least-squares result is
 # reported UNSTABLE rather than silently trusted.
 COND_MAX: float = 1.0e10

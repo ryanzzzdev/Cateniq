@@ -75,3 +75,7 @@ Probe detail: the final disposable mutation probe passed (1 test): the intact im
 **Resource interpretation corrected** per the review: `renderer.info.memory.geometries` decrements on disposal; the 40→47 variance is inconclusive without matched render history and is documented as such — live-object count (91 identical rebuild) and flat heap (21 MB) are the reported observations. Repeated-load acceptance remains CAT-012.
 
 Re-verified 2026-10-23: backend 39 pytest + ruff + strict mypy; frontend tsc + 22 vitest; 6 workbench specs + 1 shell spec + 1 perf spec green. M1 exit criteria met → CAT-006 Done, BLK-002 Resolved, M1 Complete. The M2 handoff notes above remain open CAT-007/CAT-008 scope.
+
+## Independent confirmation at ad06a83
+
+2026-10-23: occlusion regression and workload-isolated sampling fixes reviewed and reproduced; prior findings closed, M1 remains Complete. Current measurements and remaining budget-record inconsistency are recorded in the [M2 review](m2-exit-review.md).

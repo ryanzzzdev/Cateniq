@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: Endpoint interaction prototyped and budgets frozen (CAT-006, [evidence](../evidence/endpoint-interaction.md)); persistence and rerun plumbing remain M2+.
+Status: Endpoint interaction prototyped and budgets frozen (CAT-006, [evidence](../evidence/endpoint-interaction.md)); M2 refit plumbing implemented, with draft-result invalidation defects under [review](../evidence/m2-exit-review.md); persistence remains M3.
 
 ## Main journey
 
@@ -26,7 +26,7 @@ After a conflict, preserve the local draft and offer inspection/reload or delibe
 
 Provide visible tool state, keyboard undo/redo, keyboard-accessible issue selection and numerical editing, focus indication, readable error messages and recoverable loading states. The target is a desktop engineering workbench; phone editing and full accessibility certification are not initial claims.
 
-Measure loading, frame times, selection, editing and memory at stated point counts and hardware/browser settings. Frozen reference environment (CAT-006): Linux kernel 7.0, Intel Core Ultra 5 225H, 30 GB RAM, headless Chromium via Playwright 1.64.1, Vite preview + uvicorn. Workload: `corridor-perf`, 100,200 rendered points, generated on demand. Budgets (measured → frozen): load→ready ≤5 s, select ≤1 s, edit feedback ≤1 s, commit ≤1 s, frame p95 ≤50 ms. The count is a test workload, not proof of large-scale capability. Test switching datasets and repeated edits for stale objects/resource growth.
+Measure loading, frame times, selection, editing and memory at stated point counts and hardware/browser settings. Frozen reference environment (CAT-006): Linux kernel 7.0, Intel Core Ultra 5 225H, 30 GB RAM, headless Chromium via Playwright 1.64.1, Vite preview + uvicorn. Workload: `corridor-perf`, 100,200 rendered points, generated on demand. Budgets (measured → frozen): load→ready ≤5 s, select ≤1 s, edit feedback ≤1 s, commit ≤1 s, frame p50 ≤50 ms / p95 ≤100 ms (isolated fixed-camera window; see endpoint-interaction evidence for the contaminated-sample history). The count is a test workload, not proof of large-scale capability. Test switching datasets and repeated edits for stale objects/resource growth.
 
 ## Acceptance
 

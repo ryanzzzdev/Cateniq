@@ -179,12 +179,21 @@ export function PropertiesPanel({
             </p>
           )}
           {fit && (
-            <p data-testid="fit-result" className={fit.stale ? "fit stale" : "fit"}>
-              refit: {fit.status} ({fit.basis})
-              {fit.rms != null && ` (rms ${fit.rms.toFixed(3)} m)`}
-              {fit.reason ? ` — ${fit.reason}` : ""}
-              {fit.stale ? " — stale (edits since last run)" : ""}
-            </p>
+            <div data-testid="fit-result" className={fit.stale ? "fit stale" : "fit"}>
+              <p>
+                refit: {fit.status} ({fit.basis})
+                {fit.rms != null && ` (rms ${fit.rms.toFixed(3)} m)`}
+                {fit.lateralRms != null &&
+                  ` (lateral rms ${fit.lateralRms.toFixed(3)} m)`}
+                {fit.reason ? ` — ${fit.reason}` : ""}
+                {fit.stale ? " — stale (edits since last run)" : ""}
+              </p>
+              {fit.issues.map((i, n) => (
+                <p key={n} className="fit-issue" data-kind={i.kind}>
+                  {i.kind}: {i.detail} (threshold {i.threshold})
+                </p>
+              ))}
+            </div>
           )}
           {spanEdits.length > 0 && (
             <p className="muted" data-testid="unsaved-note">

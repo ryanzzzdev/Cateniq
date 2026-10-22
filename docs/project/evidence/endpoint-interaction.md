@@ -25,9 +25,9 @@ Independent review: [M1 exit review](m1-exit-review.md) reproduces timing and ex
 | Issue/entity select → properties visible | 416 ms | ≤ 1,000 ms |
 | Begin numeric edit → draft panel + displacement | 555 ms | ≤ 1,000 ms |
 | Commit edit | 393 ms | ≤ 1,000 ms |
-| Frame delta p50 / p95 | 33.2 / 33.4 ms (first runs); 33.3 / 116–133 ms (later runs) | p50 ≤ 50 ms; p95 ≤ 150 ms |
+| Frame delta p50 / p95 | 33.2 / 33.4 ms (mixed-camera early runs); isolated fixed-camera window: 33.3 / 50.0 ms (2026-10-23 run), 33.3 / 33.4 ms (review run, max 83.3 ms) | p50 ≤ 50 ms; p95 ≤ 100 ms |
 
-Measured latencies include Playwright action overhead, so they are conservative end-to-end bounds. Frame p95 varies 33–133 ms across runs under headless Chromium (GC and buffer-upload jitter); occasional single-frame spikes to ~283 ms occur during initial geometry upload and are outside the p95 budget. The original p95 ≤ 50 ms budget was falsified by later runs and is re-frozen at ≤ 150 ms.
+Measured latencies include Playwright action overhead, so they are conservative end-to-end bounds. The 116–133 ms p95 readings came from samples contaminated by the dataset transition and camera re-aim; sampling a defined 3-second window at the declared fixed camera gives p50 ≈ 33 ms and p95 ≈ 33–50 ms with a max single frame of 83 ms. The frozen budget is therefore p50 ≤ 50 ms / p95 ≤ 100 ms — the earlier ≤150 ms figure reflected the contaminated samples, and the original ≤50 ms p95 was falsified by the 50.1 ms isolated observation.
 
 ## Coverage proven
 

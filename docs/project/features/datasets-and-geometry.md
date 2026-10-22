@@ -2,7 +2,7 @@
 
 Date: 2026-10-22
 
-Status: Numerical profile frozen (CAT-004, [evidence](../evidence/geometry-profile.md)); corridor fixtures frozen (CAT-005, [evidence](../evidence/corridor-fixtures.md)); production fitting and diagnostics implemented (CAT-007, [evidence](../evidence/fitting-diagnostics.md)).
+Status: Numerical profile frozen (CAT-004, [evidence](../evidence/geometry-profile.md)); corridor fixtures frozen (CAT-005, [evidence](../evidence/corridor-fixtures.md)); production fitting and diagnostics implemented with quality gates applied to corrected results and lateral support enforced (CAT-007, [evidence](../evidence/fitting-diagnostics.md); [review](../evidence/m2-exit-review.md) findings resolved).
 
 ## Inputs and output boundary
 
@@ -28,7 +28,7 @@ The numerical profile is frozen in `backend/src/cateniq/geometry/profile.py` (th
 - **Endpoint check:** |fitted v(u_attach) − v_attach| > 0.50 m raises an endpoint-mismatch diagnostic.
 - **Solver hygiene:** Jacobian condition > 1e10 reports FAILED/unstable; solver failure reports FAILED. Fit statuses: `ok`, `insufficient_evidence`, `failed`, `infeasible`, `unsupported`.
 
-Diagnostics are computed from observations and predicted geometry: residual summaries, supporting-point coverage and endpoint/support consistency where the evidence allows. Each issue includes affected entity, measurement, configured threshold, input/run revision and an actionable explanation. Per-span results carry provenance — `basis` (`prediction` free fit vs `corrected` constrained refit), `units`, and echoed constraints with measured off-plane/lateral offsets — so original and corrected results remain distinguishable. `POST /api/datasets/{id}/refit` reruns the full corridor with the human constraint set (constrained where corrected, free elsewhere). Unsupported evidence is distinct from a failed fit and from a model that passes configured checks. Avoid uncalibrated probability/confidence labels.
+Diagnostics are computed from observations and predicted geometry: residual summaries, supporting-point coverage and endpoint/support consistency where the evidence allows. Each issue includes affected entity, measurement, configured threshold, input/run revision and an actionable explanation. Solver convergence is kept distinct from validation success: a converged fit (prediction or corrected) that violates the frozen RMS/p95 gates reports issues alongside its `ok` status, never a silently clean result. Per-span results carry provenance — `basis` (`prediction` free fit vs `corrected` constrained refit), `units`, and echoed constraints with measured off-plane/lateral offsets — so original and corrected results remain distinguishable. A corrected plane must be supported by the evidence: observation lateral RMS above `LATERAL_TOLERANCE_M` (0.5 m) is non-coplanar and rejected `unsupported` with the measured value reported, not fitted. `POST /api/datasets/{id}/refit` reruns the full corridor with the human constraint set (constrained where corrected, free elsewhere); corrected spans contribute issues to the corridor count. Unsupported evidence is distinct from a failed fit and from a model that passes configured checks. Avoid uncalibrated probability/confidence labels.
 
 An intentionally displaced predicted endpoint may drive the demonstration, provided its origin is disclosed. Diagnostic generation cannot depend on a flag saying that the fixture contains that error. Residual reduction alone is not sufficient: a proposed correction must also satisfy applicable support and coverage checks.
 

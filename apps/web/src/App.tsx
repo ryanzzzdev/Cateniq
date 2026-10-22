@@ -174,8 +174,12 @@ export default function App() {
           rms: res.rms,
           reason: res.reason,
           curve: res.fit?.curve ?? null,
+          issues: res.issues,
+          lateralRms: res.constraints?.obs_lateral_rms_m ?? null,
         },
         version,
+        attach_a,
+        attach_b,
       );
     } catch (e) {
       store.fitFailed();

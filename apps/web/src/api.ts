@@ -80,6 +80,9 @@ export interface FitResult {
   p95: number | null;
   reason: string | null;
   fit: { u_v: number; v_v: number; a: number; curve: Vec3[] } | null;
+  /** Validation issues from the frozen quality gates (solver status is
+   *  separate: a converged fit can still fail validation). */
+  issues: Issue[];
   /** Echo of the constraints the refit ran against, plus measured provenance. */
   constraints: {
     attach_a: Vec3;

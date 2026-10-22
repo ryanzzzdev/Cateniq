@@ -13,7 +13,7 @@ Build a reproducible spatial review workflow, not a full digital-twin platform. 
 | M3 — Durable review | Versioned save, recovery, conflict handling and provenance | Planned | M2 |
 | M4 — Verified portfolio demo | Reproducible delivery, performance/failure evidence and presentation | Planned | M3 |
 
-Setup and planning completion refer to documents: [CAT-001](backlog.md#cat-001), [CAT-002](backlog.md#cat-002). M1 delivered the workspace, numerical profile, fixtures and endpoint prototype. The [independent exit review](evidence/m1-exit-review.md) reopened CAT-006 for ambiguous/occluded interaction verification, resource observations, discriminating regression assertions and workload-isolated performance sampling; all findings are resolved in committed evidence. M2 delivered production fitting with computed diagnostics and hardened the computed correction journey against stale responses.
+Setup and planning completion refer to documents: [CAT-001](backlog.md#cat-001), [CAT-002](backlog.md#cat-002). M1 delivered the workspace, numerical profile, fixtures and endpoint prototype. The [independent exit review](evidence/m1-exit-review.md) reopened CAT-006 for ambiguous/occluded interaction verification, resource observations, discriminating regression assertions and workload-isolated performance sampling; all findings are resolved in committed evidence. M2 delivered production fitting with computed diagnostics and hardened the computed correction journey against stale responses; the [independent review](evidence/m2-exit-review.md) findings on corrected-fit quality gates, lateral support validation and draft-result invalidation are resolved with regression coverage.
 
 ## M1 — Evidence and interaction
 

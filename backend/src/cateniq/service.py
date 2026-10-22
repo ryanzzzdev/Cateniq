@@ -112,16 +112,15 @@ class CorridorService:
             ),
         }
 
-    def _fit_for(self, m: Manifest, span_id: str) -> dict[str, Any]:
-        preds = datasets.load_predictions(m)
-        obs = datasets.load_observations(m)
-        att, origin, plane_u = predicted_plane(m, preds, span_id)
-        arr = obs[span_id]
-        xyz = np.stack([arr["x"], arr["y"], arr["z"]], axis=1)
-        u, v = to_plane(xyz, origin, plane_u)
-        res = fit_free(u, v, att)
+    @staticmethod
+    def _issues(res: profile.FitResult, att: Any | None = None) -> list[dict[str, Any]]:
+        """Validation issues for a fit result, solver status kept distinct.
+
+        Applies the frozen quality gates to both prediction and corrected
+        results; `att` enables the endpoint-mismatch check, which is only
+        meaningful for a free fit against declared attachments.
+        """
         issues: list[dict[str, Any]] = []
-        dev: tuple[float, float] | None = None
         if res.status == profile.FitStatus.INSUFFICIENT_EVIDENCE:
             issues.append(
                 {
@@ -147,9 +146,7 @@ class CorridorService:
                 }
             )
         else:
-            assert res.params is not None and res.rms is not None
-            dev = endpoint_deviations(res.params, att)
-            if res.rms > profile.RMS_MAX_M:
+            if res.rms is not None and res.rms > profile.RMS_MAX_M:
                 issues.append(
                     {
                         "kind": "high_residual",
@@ -157,20 +154,46 @@ class CorridorService:
                         "threshold": f"RMS_MAX_M {profile.RMS_MAX_M}",
                     }
                 )
-            for which, d in (("a", dev[0]), ("b", dev[1])):
-                if abs(d) > profile.ENDPOINT_TOLERANCE_M:
-                    issues.append(
-                        {
-                            "kind": "endpoint_mismatch",
-                            "detail": (
-                                f"endpoint {which} deviates {d:+.3f} m from the "
-                                f"predicted attachment"
-                            ),
-                            "threshold": (
-                                f"ENDPOINT_TOLERANCE_M {profile.ENDPOINT_TOLERANCE_M}"
-                            ),
-                        }
-                    )
+            if res.p95 is not None and res.p95 > profile.RESIDUAL_P95_MAX_M:
+                issues.append(
+                    {
+                        "kind": "high_residual_p95",
+                        "detail": f"residual p95 {res.p95:.3f} m",
+                        "threshold": f"RESIDUAL_P95_MAX_M {profile.RESIDUAL_P95_MAX_M}",
+                    }
+                )
+            if att is not None:
+                assert res.params is not None
+                for which, d in zip(
+                    ("a", "b"), endpoint_deviations(res.params, att), strict=True
+                ):
+                    if abs(d) > profile.ENDPOINT_TOLERANCE_M:
+                        issues.append(
+                            {
+                                "kind": "endpoint_mismatch",
+                                "detail": (
+                                    f"endpoint {which} deviates {d:+.3f} m "
+                                    f"from the predicted attachment"
+                                ),
+                                "threshold": (
+                                    "ENDPOINT_TOLERANCE_M "
+                                    f"{profile.ENDPOINT_TOLERANCE_M}"
+                                ),
+                            }
+                        )
+        return issues
+
+    def _fit_for(self, m: Manifest, span_id: str) -> dict[str, Any]:
+        preds = datasets.load_predictions(m)
+        obs = datasets.load_observations(m)
+        att, origin, plane_u = predicted_plane(m, preds, span_id)
+        arr = obs[span_id]
+        xyz = np.stack([arr["x"], arr["y"], arr["z"]], axis=1)
+        u, v = to_plane(xyz, origin, plane_u)
+        res = fit_free(u, v, att)
+        dev = None
+        if res.status == profile.FitStatus.OK and res.params is not None:
+            dev = endpoint_deviations(res.params, att)
         return {
             "span_id": span_id,
             "status": res.status.value,
@@ -180,7 +203,7 @@ class CorridorService:
             "p95": res.p95,
             "condition": res.condition,
             "endpoint_deviations": list(dev) if dev is not None else None,
-            "issues": issues,
+            "issues": self._issues(res, att),
         }
 
     def diagnostics(self, dataset_id: str) -> dict[str, Any]:
@@ -224,9 +247,15 @@ class CorridorService:
                 "reason": str(exc),
                 "fit": None,
                 "constraints": None,
+                "issues": [
+                    {
+                        "kind": "unsupported_domain",
+                        "detail": str(exc),
+                        "threshold": "frozen domain bounds",
+                    }
+                ],
             }
         u, v = to_plane(xyz, origin, plane_u)
-        res = fit_constrained(u, v, att)
 
         # Provenance: off-plane offset vs the *predicted* plane, and the
         # lateral observation scatter about the corrected plane.
@@ -237,13 +266,39 @@ class CorridorService:
         off_a = float((a_w[:2] - pred_origin[:2]) @ pred_n)
         off_b = float((b_w[:2] - pred_origin[:2]) @ pred_n)
         lat = (xyz[:, :2] - origin[:2]) @ np.array([-plane_u[1], plane_u[0]])
+        lat_rms = float(np.sqrt(np.mean(lat**2)))
         constraints = {
             "attach_a": [float(x) for x in a_w],
             "attach_b": [float(x) for x in b_w],
             "off_plane_m": [off_a, off_b],
-            "obs_lateral_rms_m": float(np.sqrt(np.mean(lat**2))),
+            "obs_lateral_rms_m": lat_rms,
         }
 
+        # Support gate: the corrected plane must pass through the evidence.
+        # A plane that leaves the observations metres to its side is
+        # non-coplanar with the conductor — rejected, never silently fitted.
+        if lat_rms > profile.LATERAL_TOLERANCE_M:
+            reason = (
+                f"corrected plane unsupported by observations: lateral RMS "
+                f"{lat_rms:.3f} m > LATERAL_TOLERANCE_M {profile.LATERAL_TOLERANCE_M}"
+            )
+            res = profile.FitResult(
+                profile.FitStatus.UNSUPPORTED, None, None, None, None, reason
+            )
+            return {
+                "span_id": span_id,
+                "status": res.status.value,
+                "basis": "corrected",
+                "units": "m",
+                "rms": None,
+                "p95": None,
+                "reason": reason,
+                "fit": None,
+                "constraints": constraints,
+                "issues": self._issues(res),
+            }
+
+        res = fit_constrained(u, v, att)
         params_world = None
         if res.params is not None:
             # Sample the fitted curve back into world coordinates for display.
@@ -272,6 +327,7 @@ class CorridorService:
             "reason": res.reason,
             "fit": params_world,
             "constraints": constraints,
+            "issues": self._issues(res),
         }
 
     def refit(
