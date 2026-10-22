@@ -93,14 +93,37 @@ describe("workbench store", () => {
 
   it("recorded fits go stale when the span is edited again", () => {
     const s = readyStore();
-    s.recordFit("S2", { status: "ok", rms: 0.03, reason: null, curve: null });
+    const fit = { status: "ok", basis: "corrected", rms: 0.03, reason: null, curve: null };
+    s.recordFit("S2", fit, s.get().editVersion);
     s.beginDraft("S2", "b");
     s.moveDraft([95, 0, 12]);
     s.commitDraft();
     expect(s.get().lastFit["S2"].stale).toBe(true);
-    s.recordFit("S2", { status: "ok", rms: 0.03, reason: null, curve: null });
+    s.recordFit("S2", fit, s.get().editVersion);
     expect(s.get().lastFit["S2"].stale).toBe(false);
     s.undo();
     expect(s.get().lastFit["S2"].stale).toBe(true);
+  });
+
+  it("a fit response for an older edit version arrives stale", () => {
+    const s = readyStore();
+    const fit = { status: "ok", basis: "corrected", rms: 0.03, reason: null, curve: null };
+    const requestedAt = s.get().editVersion;
+    // Edits land while the request is in flight.
+    s.beginDraft("S2", "b");
+    s.moveDraft([95, 0, 12]);
+    s.commitDraft();
+    s.recordFit("S2", fit, requestedAt);
+    expect(s.get().lastFit["S2"].stale).toBe(true);
+  });
+
+  it("a late response cannot replace a newer result", () => {
+    const s = readyStore();
+    const old = { status: "ok", basis: "corrected", rms: 0.03, reason: null, curve: null };
+    const newer = { status: "infeasible", basis: "corrected", rms: 0.8, reason: "bound", curve: null };
+    s.recordFit("S2", newer, 5);
+    s.recordFit("S2", old, 3); // out-of-order arrival for an older version
+    expect(s.get().lastFit["S2"].status).toBe("infeasible");
+    expect(s.get().lastFit["S2"].version).toBe(5);
   });
 });

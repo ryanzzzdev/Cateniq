@@ -52,6 +52,50 @@ test("endpoint correction journey: inspect → edit → commit → validate → 
   await expect(page.getByTestId("coord-b-2")).toHaveValue("12.00");
 });
 
+test("an infeasible correction is reported, not forced", async ({ page }) => {
+  await loadCorridorA(page);
+  await selectS2(page);
+  // Move b far above any feasible attachment — the constrained refit must
+  // report infeasible rather than relaxing the constraint.
+  const zInput = page.getByTestId("coord-b-2");
+  await zInput.click();
+  await zInput.fill("30");
+  await page.getByRole("button", { name: "Commit" }).click();
+  await page.getByRole("button", { name: "Validate correction" }).click();
+  await expect(page.getByTestId("fit-result")).toContainText("infeasible");
+  await expect(page.getByTestId("fit-result")).toContainText("(corrected)");
+  // The local edit is honestly still unsaved; nothing was manufactured.
+  await expect(page.getByTestId("unsaved-note")).toContainText("1 local edit");
+});
+
+test("insufficient-evidence spans stay unresolved through the real API", async ({
+  page,
+}) => {
+  await loadCorridorA(page);
+  await page.getByLabel("dataset").selectOption("corridor-adverse");
+  await expect(page.getByTestId("load-status")).toHaveText(
+    /corridor-adverse/,
+    { timeout: 15000 },
+  );
+  await page.getByRole("button", { name: /^A1/ }).click();
+  // The diagnostic is computed, unresolved, and validation is not forced:
+  // with no edits the Validate action stays disabled.
+  await expect(page.getByTestId("endpoint-dev")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Validate correction" }),
+  ).toBeDisabled();
+  // An edit followed by validation returns insufficient_evidence — the
+  // corridor rerun does not manufacture a fit.
+  const zInput = page.getByTestId("coord-b-2");
+  await zInput.click();
+  await zInput.fill("11");
+  await page.getByRole("button", { name: "Commit" }).click();
+  await page.getByRole("button", { name: "Validate correction" }).click();
+  await expect(page.getByTestId("fit-result")).toContainText(
+    "insufficient_evidence",
+  );
+});
+
 test("cancel restores the pre-draft endpoint", async ({ page }) => {
   await loadCorridorA(page);
   await selectS2(page);

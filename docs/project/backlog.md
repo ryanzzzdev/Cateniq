@@ -13,7 +13,7 @@ Task bodies own status; index icons mirror them. Follow the [documentation guide
 - ✅ [CAT-005 — Build reproducible corridor fixtures](#cat-005)
 - ✅ [CAT-006 — Prototype endpoint inspection and editing](#cat-006)
 - ✅ [CAT-007 — Implement fitting and computed diagnostics](#cat-007)
-- 🟢 [CAT-008 — Complete the computed correction journey](#cat-008)
+- ✅ [CAT-008 — Complete the computed correction journey](#cat-008)
 - 📋 [CAT-009 — Implement durable revisions and recoverable runs](#cat-009)
 - 📋 [CAT-010 — Integrate save, acceptance, conflicts and export](#cat-010)
 - 📋 [CAT-011 — Verify review races and failure recovery](#cat-011)
@@ -257,7 +257,7 @@ Use the full rebuild as the baseline; incremental updates are excluded.
 - Area: workbench
 - Milestone: M2
 - Priority: Normal
-- Status: Ready 🟢
+- Status: Done ✅
 - Depends on: CAT-006, CAT-007
 - References: [Specification](features/workbench.md)
 
@@ -274,7 +274,7 @@ Connect diagnostics, reversible editing and refitting through the real API.
 
 ### Completion evidence
 
-Not started; no implementation or verification evidence yet.
+2026-10-23: Request/response correlation implemented — `editVersion` captured at request time, late responses flagged stale (`recordFit` version check, responses never replace newer results), constraint echo verified against submitted attachments, dataset-switch discards in-flight results. New e2e: infeasible correction reported honestly; adverse dataset stays `insufficient_evidence` post-edit. 24 vitest + 9 browser specs green.
 
 ### Notes
 

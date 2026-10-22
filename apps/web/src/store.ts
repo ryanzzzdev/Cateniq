@@ -36,11 +36,25 @@ export interface WorkbenchState {
   past: EditCommand[];
   /** Redo stack; cleared by any new commit. */
   future: EditCommand[];
-  /** Latest constrained-fit preview per span; stale once newer edits land. */
-  lastFit: Record<
-    string,
-    { status: string; rms: number | null; reason: string | null; curve: Vec3[] | null; stale: boolean }
-  >;
+  /** Bumped whenever effective attachments change (draft move, commit,
+   *  undo/redo). Fit requests capture it; responses for older versions are
+   *  stale and can never replace a result recorded for a newer version. */
+  editVersion: number;
+  /** Latest constrained-fit preview per span. */
+  lastFit: Record<string, FitRecord>;
+  /** A constrained-fit request is in flight. */
+  fitPending: boolean;
+}
+
+export interface FitRecord {
+  status: string;
+  basis: string;
+  rms: number | null;
+  reason: string | null;
+  curve: Vec3[] | null;
+  /** editVersion this result was computed for. */
+  version: number;
+  stale: boolean;
 }
 
 const initial: WorkbenchState = {
@@ -53,7 +67,9 @@ const initial: WorkbenchState = {
   draft: null,
   past: [],
   future: [],
+  editVersion: 0,
   lastFit: {},
+  fitPending: false,
 };
 
 export class WorkbenchStore {
@@ -125,7 +141,12 @@ export class WorkbenchStore {
   moveDraft(to: Vec3, snappedTo: string | null = null) {
     const d = this.state.draft;
     if (!d) return;
-    this.set({ draft: { ...d, current: [...to], snappedTo } });
+    // The effective attachment changed — any in-flight fit request now
+    // refers to an older version and its response will be stale.
+    this.set({
+      draft: { ...d, current: [...to], snappedTo },
+      editVersion: this.state.editVersion + 1,
+    });
   }
 
   /** Commit the draft as one logical undoable command. */
@@ -147,6 +168,9 @@ export class WorkbenchStore {
       past: moved ? [...this.state.past, cmd] : this.state.past,
       future: [],
       lastFit,
+      editVersion: moved
+        ? this.state.editVersion + 1
+        : this.state.editVersion,
     });
     return cmd;
   }
@@ -166,6 +190,7 @@ export class WorkbenchStore {
       past: past.slice(0, -1),
       future: [cmd, ...this.state.future],
       lastFit,
+      editVersion: this.state.editVersion + 1,
     });
   }
 
@@ -175,15 +200,49 @@ export class WorkbenchStore {
     const [cmd, ...rest] = future;
     const lastFit = { ...this.state.lastFit };
     if (lastFit[cmd.spanId]) lastFit[cmd.spanId].stale = true;
-    this.set({ past: [...this.state.past, cmd], future: rest, lastFit });
+    this.set({
+      past: [...this.state.past, cmd],
+      future: rest,
+      lastFit,
+      editVersion: this.state.editVersion + 1,
+    });
   }
 
+  /** Mark a constrained-fit request as in flight. */
+  beginFit() {
+    this.set({ fitPending: true });
+  }
+
+  /** The in-flight request ended without a recorded result (error/discard). */
+  fitFailed() {
+    this.set({ fitPending: false });
+  }
+
+  /** Record a fit response computed for `version`. A response arriving after
+   *  a newer result never replaces it; a response for an older edit version
+   *  is kept but honestly flagged stale. */
   recordFit(
     spanId: string,
-    fit: { status: string; rms: number | null; reason: string | null; curve: Vec3[] | null },
+    fit: {
+      status: string;
+      basis: string;
+      rms: number | null;
+      reason: string | null;
+      curve: Vec3[] | null;
+    },
+    version: number,
   ) {
+    const existing = this.state.lastFit[spanId];
+    if (existing && existing.version > version) {
+      this.set({ fitPending: false });
+      return;
+    }
     this.set({
-      lastFit: { ...this.state.lastFit, [spanId]: { ...fit, stale: false } },
+      fitPending: false,
+      lastFit: {
+        ...this.state.lastFit,
+        [spanId]: { ...fit, version, stale: version !== this.state.editVersion },
+      },
     });
   }
 }

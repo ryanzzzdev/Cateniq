@@ -168,14 +168,19 @@ export function PropertiesPanel({
             </button>
             <button
               onClick={() => onValidate(selectedSpanId)}
-              disabled={!spanEdits.length && !draft}
+              disabled={(!spanEdits.length && !draft) || state.fitPending}
             >
               Validate correction
             </button>
           </div>
+          {state.fitPending && (
+            <p className="muted" data-testid="fit-pending">
+              refit: running…
+            </p>
+          )}
           {fit && (
             <p data-testid="fit-result" className={fit.stale ? "fit stale" : "fit"}>
-              refit: {fit.status}
+              refit: {fit.status} ({fit.basis})
               {fit.rms != null && ` (rms ${fit.rms.toFixed(3)} m)`}
               {fit.reason ? ` — ${fit.reason}` : ""}
               {fit.stale ? " — stale (edits since last run)" : ""}

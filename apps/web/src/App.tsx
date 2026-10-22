@@ -135,21 +135,50 @@ export default function App() {
   }
 
   async function validate(spanId: string) {
-    const id = store.get().datasetId;
+    const s0 = store.get();
+    const id = s0.datasetId;
     if (!id) return;
+    // Capture the inputs this request is computed for; a response that comes
+    // back for a different version/dataset must not masquerade as current.
+    const version = s0.editVersion;
+    const attach_a = store.attachFor(spanId, "a");
+    const attach_b = store.attachFor(spanId, "b");
+    store.beginFit();
     try {
       const res = await postFit(id, {
         span_id: spanId,
-        attach_a: store.attachFor(spanId, "a"),
-        attach_b: store.attachFor(spanId, "b"),
+        attach_a,
+        attach_b,
       });
-      store.recordFit(spanId, {
-        status: res.status,
-        rms: res.rms,
-        reason: res.reason,
-        curve: res.fit?.curve ?? null,
-      });
+      if (store.get().datasetId !== id) {
+        store.fitFailed();
+        return; // dataset switched mid-flight — the result belongs elsewhere
+      }
+      if (res.constraints) {
+        const same = (a: Vec3, b: number[]) =>
+          a.every((v, i) => Math.abs(v - b[i]) < 1e-6);
+        if (
+          !same(attach_a, res.constraints.attach_a) ||
+          !same(attach_b, res.constraints.attach_b)
+        ) {
+          store.fitFailed();
+          store.setError("fit response does not match submitted constraints");
+          return;
+        }
+      }
+      store.recordFit(
+        spanId,
+        {
+          status: res.status,
+          basis: res.basis,
+          rms: res.rms,
+          reason: res.reason,
+          curve: res.fit?.curve ?? null,
+        },
+        version,
+      );
     } catch (e) {
+      store.fitFailed();
       store.setError(String(e));
     }
   }
