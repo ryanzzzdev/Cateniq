@@ -87,3 +87,5 @@ Exit criteria:
 Hosted CI status must be reported separately from local results; no claim of a green hosted run without observing one. Public deployment, real LiDAR validation and additional tools remain future candidates, not hidden exit requirements.
 
 Independent review at `829b736` reopened M3/M4 for remaining undo/save correctness, verification/demo isolation and final evidence coverage — the re-review at `4611e39` confirms isolation and timing checks but finds a remaining undo/save history-branch defect; see [M4 review](evidence/m4-exit-review.md).
+
+Independent confirmation at `6b5bfea` closes the remaining history-branch save race with passing store and delayed-response browser regressions (33 unit / 21 browser checks). M3/M4 Complete for the documented local scope; prior hosted-CI and measurement limitations remain. See [confirmation](evidence/m4-exit-review.md#independent-confirmation-at-6b5bfea).

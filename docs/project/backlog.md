@@ -352,6 +352,8 @@ Independent review at `296647d` reopened this for late-save edit loss, disabled 
 
 Independent review at `829b736`: reopened because undo during pending save still loses newer user intent — resolved: `recordSaved` now rebases local history onto the acknowledged baseline (drops acked/redundant commands, re-expresses untouched-by-baseline endpoints as explicit unsaved edits), covering undo-to-empty and branch-after-undo; store + e2e regressions added.
 
+Independent confirmation at `6b5bfea`: the previously failing history-branch case passes its store and delayed-response browser regressions; frontend typecheck, 33 unit tests and all 21 browser checks pass. See [confirmation](evidence/m4-exit-review.md#independent-confirmation-at-6b5bfea).
+
 ### Notes
 
 No automatic merge and no claims that corrections are unquestioned ground truth.
@@ -388,6 +390,8 @@ Fault/race matrix recorded in `docs/project/evidence/m3-review-lifecycle.md`: co
 Independent review at `296647d` reopened this for race regressions and actual process-recovery/deadline evidence — resolved: coherent-snapshot regression under a concurrent saver, real SIGKILL recovery test, executor-responsiveness test, and an explicit cooperative-deadline scope statement. See [M3 exit review](evidence/m3-exit-review.md).
 
 Independent review at `829b736`: reopened because undo/save regression verification remains required — resolved: undo-during-save regression now in the browser suite and store tests, and the m3 fault matrix records the mechanism.
+
+Independent confirmation at `6b5bfea`: the previously failing history-branch case passes its store and delayed-response browser regressions; frontend typecheck, 33 unit tests and all 21 browser checks pass. See [confirmation](evidence/m4-exit-review.md#independent-confirmation-at-6b5bfea).
 
 ### Notes
 

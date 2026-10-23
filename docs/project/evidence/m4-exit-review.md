@@ -69,3 +69,9 @@ The different-endpoint branch-after-undo reproduction is confirmed and fixed. `r
 Regressions: `store.test.ts` ("undo then a different-endpoint edit during save preserves the undo" — asserts both values and history length) and a `review.spec.ts` delayed-response browser test asserting both endpoints and the unsaved indicator after release.
 
 Re-verification: 83 pytest + ruff/format/strict mypy; `tsc -b` + 33 vitest + build; 21 browser checks on the default config; 2 demo recordings on the dedicated config. CAT-010/011 Done again; M3/M4 Complete.
+
+## Independent confirmation at `6b5bfea`
+
+The remaining P1 is resolved. Inspected the change to include `acked` endpoints in the pre-response geometry snapshot and the new store/browser regressions. The exact previously failing sequence (commit b → save → undo → commit a → acknowledgement) now preserves both the reverted b and edited a, with two unsaved edits. No actionable findings in this focused fix review. CAT-010/011 Done and M3/M4 Complete are supported for the documented local scope.
+
+Independent verification: `cd apps/web && npm run typecheck && npm test` passes (33 unit tests); `npm run test:e2e` passes all 21 browser checks, including the delayed real-API save-response regression, and builds the production frontend. Initial sandboxed browser startup failed; rerunning with local-server permissions passed. The existing large-bundle build warning remains. Backend, dedicated demo and performance suites were not rerun: their code/harnesses are unchanged from the preceding review, whose results and measurement limitations still apply. No fresh install, hosted CI or visual recording audit claimed.

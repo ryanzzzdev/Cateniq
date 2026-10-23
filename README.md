@@ -15,6 +15,20 @@ cd apps/web
 npx playwright test -c playwright.demo.config.ts   # videos → test-results/demo-*/video.webm
 ```
 
+## Run it
+
+Requires uv (Python ≥3.12) and Node 22/npm. Committed fixtures are used as-is — no data setup needed.
+
+```bash
+# Terminal 1 — API on :8000
+cd backend && uv sync --locked && uv run uvicorn cateniq.app:app --port 8000
+
+# Terminal 2 — workbench on http://localhost:5173 (Vite proxies /api to :8000)
+cd apps/web && npm ci && npm run dev
+```
+
+Suggested first path — the recorded demo flow ([docs/project/demo.md](docs/project/demo.md)): open **corridor-a**, select span **S2** (flagged `endpoint_mismatch`), inspect the diagnostic, edit endpoint B's z to the high attachment, commit, refit, run validation, save and reopen. corridor-b is the clean path for acceptance and a second-window save conflict; corridor-adverse demonstrates honest `insufficient_evidence` outcomes.
+
 ## Development
 
 Toolchain: uv (Python ≥3.12; locked environment uses 3.14) and Node 22/npm. The API package lives in `backend/`, the browser app in `apps/web/`. Exact dependency versions are locked in `backend/uv.lock` and `apps/web/package-lock.json`.
