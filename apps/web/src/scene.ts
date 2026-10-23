@@ -537,5 +537,6 @@ export class CorridorScene {
     this.clearData();
     this.controls.dispose();
     this.renderer.dispose();
+    this.renderer.domElement.remove();
   }
 }
