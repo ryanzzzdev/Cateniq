@@ -117,7 +117,7 @@ The stack is chosen to support delivery and transferable engineering skills. It 
 
 ## Alignment with the Neara role
 
-The target is Neara's [Senior Software Engineer — Digitisation role](https://jobs.ashbyhq.com/neara/357478aa-cfae-42c0-b2b9-b90dd9be1e38), reviewed on 22 October 2026. The role focuses on making digital-twin construction self-service and improving the interface between algorithms and delivery teams.
+The target is Neara's [Senior Software Engineer — Digitisation role](https://jobs.ashbyhq.com/neara/357478aa-cfae-42c0-b2b9-b90dd9be1e38) ([local extract](initial-discussion/neara.md)), reviewed on 22 October 2026. The role focuses on making digital-twin construction self-service and improving the interface between algorithms and delivery teams.
 
 | Role emphasis | Evidence Cateniq intends to provide |
 | --- | --- |

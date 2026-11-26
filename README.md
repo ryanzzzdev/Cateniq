@@ -4,7 +4,7 @@ A spatial QA workbench for reviewing, correcting and validating automatically ex
 
 The demonstration follows one incorrectly fitted conductor endpoint from computed diagnostic to spatial inspection, reversible correction, revalidation, durable save/reopen and an exportable provenance record — plus a clean acceptance path and a two-session save conflict. Synthetic observations and injected errors are labelled; unresolved cases stay flagged rather than forced green. The product does not certify physical safety or calculate network operating limits.
 
-Cateniq complements NEMLab's market analysis and Voltix's simulated edge control with spatial computation and expert-facing interactive software. See the [project concept](docs/project-concept.md) for motivation, the Neara role connection and portfolio positioning, and [the demo walkthrough](docs/project/demo.md) for the recorded sequences.
+Cateniq complements NEMLab's market analysis and Voltix's simulated edge control with spatial computation and expert-facing interactive software. See the [project concept](docs/project-concept.md) for motivation and portfolio positioning, the [target job description](docs/initial-discussion/neara.md) for the Neara role connection, and [the demo walkthrough](docs/project/demo.md) for the recorded sequences.
 
 ## Demo
 
@@ -81,6 +81,6 @@ Verified on Linux (kernel 7.0), Python 3.14.4, uv 0.11.29, Node 22.23.1, npm 10.
 - [Architecture](docs/project/architecture.md) and [open questions](docs/project/blockers.md)
 - Feature contracts: [datasets and geometry](docs/project/features/datasets-and-geometry.md), [workbench](docs/project/features/workbench.md), [review lifecycle](docs/project/features/review-lifecycle.md), [verification](docs/project/features/verification.md)
 - Decisions: [tracking](docs/project/decisions/001-markdown-project-tracking.md), [scope and stack](docs/project/decisions/002-scope-and-stack.md), [correction lifecycle](docs/project/decisions/003-correction-lifecycle.md)
-- [Work journal](docs/project/journal/2026-10.md)
+- Work journal: [October](docs/project/journal/2026-10.md), [November](docs/project/journal/2026-11.md)
 
 The project-management skill travels with the repository at [.devin/skills/project-management/SKILL.md](.devin/skills/project-management/SKILL.md). Cateniq owns its records independently of Voltix and NEMLab. Background conversations remain preserved under `docs/initial-discussion/`.
